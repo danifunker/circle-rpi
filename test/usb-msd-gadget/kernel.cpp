@@ -45,7 +45,7 @@ CKernel::CKernel (void)
 	m_MSDGadget (&m_Interrupt),
 	m_ImageFileBlockDevice (nullptr)
 {
-	m_ActLED.Blink (5);	// show we are alive
+	//m_ActLED.Blink (5);	// show we are alive
 }
 
 CKernel::~CKernel (void)
