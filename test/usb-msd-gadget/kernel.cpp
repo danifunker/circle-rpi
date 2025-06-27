@@ -139,22 +139,39 @@ TShutdownMode CKernel::Run (void)
         LOGNOTE("Started log file daemon");
     }
 
-	const char *imgfile = Properties.GetString("imagefile", nullptr);
-    if (imgfile) {
-        m_ImageFileBlockDevice = new CImageFileBlockDevice(imgfile, &m_FileSystem);
-        if (m_ImageFileBlockDevice->IsReady())
-            m_MSDGadget.SetDevice(m_ImageFileBlockDevice);
-        else
-            LOGERR("Failed to open image file for MSD gadget");
-    } else {
-        LOGERR("No image file specified in config");
-    }
-
-
-    LOGNOTE("=====================================");
+	LOGNOTE("=====================================");
     LOGNOTE("Welcome to USBMSD");
     LOGNOTE("Compile time: " __DATE__ " " __TIME__);
     LOGNOTE("=====================================");
+
+	const char *imgfile = Properties.GetString("imagefile", nullptr);
+    if (imgfile) {
+        LOGNOTE("Attempting to open image file: %s", imgfile);
+        m_ImageFileBlockDevice = new CImageFileBlockDevice(imgfile, &m_FileSystem);
+        if (m_ImageFileBlockDevice->IsReady()) {
+            m_MSDGadget.SetDevice(m_ImageFileBlockDevice);
+            LOGNOTE("Exposing image file as MSD gadget");
+            LOGNOTE("After SetDevice: GetSectorCount=%u, GetBlockSize=%u",
+                m_ImageFileBlockDevice->GetSectorCount(),
+                m_ImageFileBlockDevice->GetBlockSize());
+        } else {
+            LOGERR("Failed to open image file for MSD gadget, falling back to SDCard");
+            delete m_ImageFileBlockDevice;
+            m_ImageFileBlockDevice = nullptr;
+            m_MSDGadget.SetDevice(&m_EMMC);
+            LOGNOTE("Exposing SDCard as MSD gadget");
+        }
+    } else {
+        LOGERR("No image file specified in config, exposing SDCard as MSD gadget");
+        m_MSDGadget.SetDevice(&m_EMMC);
+        LOGNOTE("Exposing SDCard as MSD gadget");
+    }
+
+	if (m_ImageFileBlockDevice && m_ImageFileBlockDevice->IsReady()) {
+    LOGNOTE("Image file size: %u bytes, sectors: %u",
+        m_ImageFileBlockDevice->GetFileSize(),
+        m_ImageFileBlockDevice->GetSectorCount());
+	}
 
     uint32_t lastYield = m_Timer.GetTicks();
 
