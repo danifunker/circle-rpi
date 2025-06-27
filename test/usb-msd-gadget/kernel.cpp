@@ -20,6 +20,18 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "kernel.h"
+#include <filelogdaemon/filelogdaemon.h>
+#include <circle/sched/scheduler.h>
+
+#ifndef USB_GADGET_VENDOR_ID
+#error "USB_GADGET_VENDOR_ID is not defined!"
+#endif
+#define STR(x) #x
+#define XSTR(x) STR(x)
+#pragma message ("USB_GADGET_VENDOR_ID = " XSTR(USB_GADGET_VENDOR_ID))
+#define DRIVE "SD:"
+#define CONFIG_FILE DRIVE "/config.txt"
+#define LOG_FILE DRIVE "/logfile.txt"
 
 LOGMODULE ("kernel");
 
@@ -44,11 +56,17 @@ boolean CKernel::Initialize (void)
 	if (bOK)
 	{
 		bOK = m_Screen.Initialize ();
+		if (bOK)
+		{
+			LOGNOTE("Build: " __DATE__ " " __TIME__);
+		}
 	}
 
 	if (bOK)
 	{
 		bOK = m_Serial.Initialize (115200);
+		LOGNOTE("Build: " __DATE__ " " __TIME__);
+
 	}
 
 	if (bOK)
@@ -67,6 +85,7 @@ boolean CKernel::Initialize (void)
 		bOK = m_Interrupt.Initialize ();
 	}
 
+
 	if (bOK)
 	{
 		bOK = m_Timer.Initialize ();
@@ -76,6 +95,18 @@ boolean CKernel::Initialize (void)
 	{
 		bOK = m_EMMC.Initialize ();
 	}
+
+
+	    if (bOK) {
+        if (f_mount(&m_FileSystem, DRIVE, 1) != FR_OK) {
+            LOGERR("Cannot mount drive: %s", DRIVE);
+
+            bOK = FALSE;
+        }
+        LOGNOTE("Initialized filesystem");
+		LOGNOTE("Build: " __DATE__ " " __TIME__);
+
+    }
 
 	if(bOK)
 	{
@@ -87,7 +118,26 @@ boolean CKernel::Initialize (void)
 
 TShutdownMode CKernel::Run (void)
 {
-	LOGNOTE ("Compile time: " __DATE__ " " __TIME__);
+    // Load our config file loader
+    CPropertiesFatFsFile Properties(CONFIG_FILE, &m_FileSystem);
+    if (!Properties.Load()) {
+        LOGERR("Error loading properties from %s (line %u)",
+               CONFIG_FILE, Properties.GetErrorLine());
+        return ShutdownHalt;
+    }
+
+	Properties.SelectSection("msd");
+	// Start the file logging daemon
+    const char *logfile = Properties.GetString("logfile", nullptr);
+    if (logfile) {
+        new CFileLogDaemon(logfile);
+        LOGNOTE("Started log file daemon");
+    }
+
+    LOGNOTE("=====================================");
+    LOGNOTE("Welcome to USBMSD");
+    LOGNOTE("Compile time: " __DATE__ " " __TIME__);
+    LOGNOTE("=====================================");
 
 	m_MSDGadget.SetDevice (&m_EMMC);
 
