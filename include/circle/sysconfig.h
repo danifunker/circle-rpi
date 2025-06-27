@@ -329,7 +329,7 @@
 // define a new one.
 
 #ifndef USB_GADGET_VENDOR_ID
-#define USB_GADGET_VENDOR_ID		0x0000
+#define USB_GADGET_VENDOR_ID		0x0525
 #endif
 
 // USB_GADGET_DEVICE_ID_BASE is the base value for the assignment of
@@ -340,7 +340,7 @@
 // same USB Vendor ID!
 
 #ifndef USB_GADGET_DEVICE_ID_BASE
-#define USB_GADGET_DEVICE_ID_BASE	0x8001
+#define USB_GADGET_DEVICE_ID_BASE	0xa4a5
 #endif
 
 #ifndef USB_GADGET_DEVICE_ID_MIDI

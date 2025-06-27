@@ -26,7 +26,7 @@
 #include <circle/util.h>
 #include <assert.h>
 
-#define MLOGNOTE(From,...)		//CLogger::Get ()->Write (From, LogNotice, __VA_ARGS__)
+#define MLOGNOTE(From,...)		CLogger::Get ()->Write (From, LogNotice, __VA_ARGS__)
 #define MLOGDEBUG(From,...)		//CLogger::Get ()->Write (From, LogDebug, __VA_ARGS__)
 #define MLOGERR(From,...)		CLogger::Get ()->Write (From, LogError,__VA_ARGS__)
 #define DEFAULT_BLOCKS 16000
@@ -380,6 +380,8 @@ void CUSBMSDGadget::SendCSW()
 
 void CUSBMSDGadget::HandleSCSICommand()
 {
+	MLOGNOTE("HandleSCSICommand","CBWCB[0]=0x%x, CBWCB[1]=0x%x, CBWCB[2]=0x%x, CBWCB[3]=0x%x",
+	          m_CBW.CBWCB[0],m_CBW.CBWCB[1],m_CBW.CBWCB[2],m_CBW.CBWCB[3]);
 	switch(m_CBW.CBWCB[0])
 	{
 	case 0x0: // Test unit ready

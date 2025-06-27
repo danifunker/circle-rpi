@@ -28,10 +28,14 @@
 #include <circle/exceptionhandler.h>
 #include <circle/interrupt.h>
 #include <circle/timer.h>
+#include <circle/sched/scheduler.h>
 #include <circle/logger.h>
 #include <circle/usb/gadget/usbmsdgadget.h>
 #include <SDCard/emmc.h>
+#include <fatfs/ff.h>
 #include <circle/types.h>
+#include <Properties/propertiesfatfsfile.h>
+#include <imagefileblockdevice/imagefileblockdevice.h>
 
 enum TShutdownMode
 {
@@ -61,8 +65,11 @@ private:
 	CInterruptSystem	m_Interrupt;
 	CTimer			m_Timer;
 	CLogger			m_Logger;
+	CScheduler m_Scheduler;
 
 	CEMMCDevice		m_EMMC;
+    FATFS m_FileSystem;
+	CImageFileBlockDevice* m_ImageFileBlockDevice;
 	CUSBMSDGadget		m_MSDGadget;
 };
 
