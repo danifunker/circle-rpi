@@ -140,6 +140,7 @@ TShutdownMode CKernel::Run (void)
     LOGNOTE("=====================================");
 
 	m_MSDGadget.SetDevice (&m_EMMC);
+    uint32_t lastYield = m_Timer.GetTicks();
 
 	for (unsigned nCount = 0; 1; nCount++)
 	{
@@ -149,6 +150,12 @@ TShutdownMode CKernel::Run (void)
 		m_MSDGadget.Update ();
 
 		m_Screen.Rotor (0, nCount);
+        uint32_t now = m_Timer.GetTicks();
+        if ((now - lastYield) >= 100) // 100ms elapsed
+        {
+            CScheduler::Get()->Yield();
+            lastYield = now;
+        }
 	}
 
 	return ShutdownHalt;
