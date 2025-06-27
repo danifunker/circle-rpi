@@ -35,7 +35,7 @@
 #include <fatfs/ff.h>
 #include <circle/types.h>
 #include <Properties/propertiesfatfsfile.h>
-
+#include <imagefileblockdevice/imagefileblockdevice.h>
 
 enum TShutdownMode
 {
@@ -69,6 +69,7 @@ private:
 
 	CEMMCDevice		m_EMMC;
     FATFS m_FileSystem;
+	CImageFileBlockDevice* m_ImageFileBlockDevice;
 	CUSBMSDGadget		m_MSDGadget;
 };
 

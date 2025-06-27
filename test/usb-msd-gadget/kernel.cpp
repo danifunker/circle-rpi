@@ -22,6 +22,8 @@
 #include "kernel.h"
 #include <filelogdaemon/filelogdaemon.h>
 #include <circle/sched/scheduler.h>
+#include <imagefileblockdevice/imagefileblockdevice.h>
+
 
 #ifndef USB_GADGET_VENDOR_ID
 #error "USB_GADGET_VENDOR_ID is not defined!"
@@ -40,13 +42,16 @@ CKernel::CKernel (void)
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
 	m_EMMC (&m_Interrupt, &m_Timer, &m_ActLED),
-	m_MSDGadget (&m_Interrupt)
+	m_MSDGadget (&m_Interrupt),
+	m_ImageFileBlockDevice (nullptr)
 {
 	m_ActLED.Blink (5);	// show we are alive
 }
 
 CKernel::~CKernel (void)
 {
+	    if (m_ImageFileBlockDevice)
+        delete m_ImageFileBlockDevice;
 }
 
 boolean CKernel::Initialize (void)
@@ -134,12 +139,23 @@ TShutdownMode CKernel::Run (void)
         LOGNOTE("Started log file daemon");
     }
 
+	const char *imgfile = Properties.GetString("imagefile", nullptr);
+    if (imgfile) {
+        m_ImageFileBlockDevice = new CImageFileBlockDevice(imgfile, &m_FileSystem);
+        if (m_ImageFileBlockDevice->IsReady())
+            m_MSDGadget.SetDevice(m_ImageFileBlockDevice);
+        else
+            LOGERR("Failed to open image file for MSD gadget");
+    } else {
+        LOGERR("No image file specified in config");
+    }
+
+
     LOGNOTE("=====================================");
     LOGNOTE("Welcome to USBMSD");
     LOGNOTE("Compile time: " __DATE__ " " __TIME__);
     LOGNOTE("=====================================");
 
-	m_MSDGadget.SetDevice (&m_EMMC);
     uint32_t lastYield = m_Timer.GetTicks();
 
 	for (unsigned nCount = 0; 1; nCount++)

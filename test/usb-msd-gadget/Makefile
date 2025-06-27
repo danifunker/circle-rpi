@@ -20,6 +20,7 @@ LIBS	= $(CIRCLEHOME)/lib/usb/libusb.a \
 	  $(CIRCLEHOME)/addon/linux/liblinuxemu.a \
 	  $(CIRCLEHOME)/lib/libcircle.a \
 	  $(CIRCLEHOME)/addon/Properties/libproperties.a \
+	  $(CIRCLEHOME)/addon/imagefileblockdevice/libimagefileblockdevice.a \
 	  $(CIRCLEHOME)/addon/SDCard/libsdcard.a
 
 include $(CIRCLEHOME)/Rules.mk
