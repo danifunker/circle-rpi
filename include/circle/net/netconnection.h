@@ -81,6 +81,15 @@ public:
 					  u16 nSendPort, u16 nReceivePort,
 					  int nProtocol) = 0;
 
+	struct TStatus
+	{
+		boolean bConnected;	///< Is connected
+		boolean bRxReady;	///< Ready to receive without blocking
+		boolean bTxReady;	///< Ready to transmit without blocking
+		boolean bException;	///< Exception arrived (always FALSE)
+	};
+	virtual TStatus GetStatus (void) const = 0;
+
 protected:
 	CNetConfig    *m_pNetConfig;
 	CNetworkLayer *m_pNetworkLayer;

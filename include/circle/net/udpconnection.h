@@ -73,6 +73,8 @@ public:
 				  u16 nSendPort, u16 nReceivePort,
 				  int nProtocol);
 
+	TStatus GetStatus (void) const;
+
 private:
 	boolean m_bOpen;
 	boolean m_bActiveOpen;

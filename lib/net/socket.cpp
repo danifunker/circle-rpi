@@ -390,3 +390,14 @@ const u8 *CSocket::GetForeignIP (void) const
 	assert (m_pTransportLayer != 0);
 	return m_pTransportLayer->GetForeignIP (m_hConnection);
 }
+
+CSocket::TStatus CSocket::GetStatus (void) const
+{
+	if (m_hConnection < 0)
+	{
+		return {FALSE, FALSE, FALSE, FALSE};
+	}
+
+	assert (m_pTransportLayer != 0);
+	return m_pTransportLayer->GetStatus (m_hConnection);
+}

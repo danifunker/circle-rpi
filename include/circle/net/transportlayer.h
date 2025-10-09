@@ -72,6 +72,8 @@ public:
 	boolean IsConnected (int hConnection) const;
 	const u8 *GetForeignIP (int hConnection) const;		// returns 0 if not connected
 
+	CNetConnection::TStatus GetStatus (int hConnection) const;
+
 	void ListConnections (CDevice *pTarget);
 
 private:

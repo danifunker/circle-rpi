@@ -438,6 +438,18 @@ const u8 *CTransportLayer::GetForeignIP (int hConnection) const
 	return ((CNetConnection *) m_pConnection[hConnection])->GetForeignIP ();
 }
 
+CNetConnection::TStatus CTransportLayer::GetStatus (int hConnection) const
+{
+	assert (hConnection >= 0);
+	if (   hConnection >= (int) m_pConnection.GetCount ()
+	    || m_pConnection[hConnection] == 0)
+	{
+		return {FALSE, FALSE, FALSE, FALSE};
+	}
+
+	return ((CNetConnection *) m_pConnection[hConnection])->GetStatus ();
+}
+
 void CTransportLayer::ListConnections (CDevice *pTarget)
 {
 	assert (pTarget != 0);

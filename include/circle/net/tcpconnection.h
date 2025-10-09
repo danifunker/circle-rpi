@@ -103,6 +103,8 @@ public:
 				  u16 nSendPort, u16 nReceivePort,
 				  int nProtocol);
 
+	TStatus GetStatus (void) const;
+
 private:
 	boolean SendSegment (unsigned nFlags, u32 nSequenceNumber, u32 nAcknowledgmentNumber = 0,
 			     const void *pData = 0, unsigned nDataLength = 0);

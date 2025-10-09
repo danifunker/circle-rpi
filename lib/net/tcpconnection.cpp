@@ -1382,6 +1382,46 @@ int CTCPConnection::NotificationReceived (TICMPNotificationType  Type,
 	return 1;
 }
 
+CNetConnection::TStatus CTCPConnection::GetStatus (void) const
+{
+	TStatus Status = {FALSE, FALSE, FALSE, FALSE};
+
+	switch (m_State)
+	{
+	case TCPStateClosed:
+	case TCPStateListen:
+	case TCPStateFinWait1:
+	case TCPStateFinWait2:
+	case TCPStateClosing:
+	case TCPStateLastAck:
+	case TCPStateTimeWait:
+		return Status;
+
+	case TCPStateCloseWait:
+	case TCPStateSynSent:
+	case TCPStateSynReceived:
+	case TCPStateEstablished:
+		break;
+	}
+
+	Status.bConnected = TRUE;
+
+	if (   m_State != TCPStateCloseWait
+	    && (   m_nErrno < 0
+	        || m_Event.GetState ()))
+	{
+		Status.bRxReady = TRUE;
+	}
+
+	if (   m_nErrno < 0
+	    || m_TxEvent.GetState ())
+	{
+		Status.bTxReady = TRUE;
+	}
+
+	return Status;
+}
+
 boolean CTCPConnection::SendSegment (unsigned nFlags, u32 nSequenceNumber, u32 nAcknowledgmentNumber,
 				     const void *pData, unsigned nDataLength)
 {

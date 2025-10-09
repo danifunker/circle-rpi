@@ -511,3 +511,25 @@ int CUDPConnection::NotificationReceived (TICMPNotificationType  Type,
 
 	return 1;
 }
+
+CNetConnection::TStatus CUDPConnection::GetStatus (void) const
+{
+	TStatus Status = {FALSE, FALSE, FALSE, FALSE};
+
+	if (!m_bOpen)
+	{
+		return Status;
+	}
+
+	Status.bConnected = TRUE;
+
+	if (   m_nErrno < 0
+	    || m_Event.GetState ())
+	{
+		Status.bRxReady = TRUE;
+	}
+
+	Status.bTxReady = TRUE;
+
+	return Status;
+}

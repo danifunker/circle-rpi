@@ -57,6 +57,7 @@ public:
 				  CIPAddress &rSenderIP, CIPAddress &rReceiverIP,
 				  u16 nSendPort, u16 nReceivePort,
 				  int nProtocol)			{ return 0; }
+	TStatus GetStatus (void) const		{ return {FALSE, FALSE, FALSE, FALSE}; }
 
 private:
 	boolean SendSegment (unsigned nFlags, u32 nSequenceNumber, u32 nAcknowledgmentNumber = 0);

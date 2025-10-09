@@ -119,6 +119,10 @@ public:
 	/// \return Pointer to IP address (four bytes, 0-pointer if not connected)
 	const u8 *GetForeignIP (void) const;
 
+	typedef CNetConnection::TStatus TStatus;
+	/// \return Socket status
+	TStatus GetStatus (void) const;
+
 private:
 	CSocket (CSocket &rSocket, int hConnection);
 
