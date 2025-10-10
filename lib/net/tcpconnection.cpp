@@ -399,6 +399,18 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 		break;
 	}
 	
+	if (   !(nFlags & MSG_DONTWAIT)
+	    && !m_TxQueue.IsEmpty ())
+	{
+		m_TxEvent.Clear ();
+		m_TxEvent.Wait ();
+
+		if (m_nErrno < 0)
+		{
+			return m_nErrno;
+		}
+	}
+
 	unsigned nResult = nLength;
 
 	assert (pData != 0);
@@ -417,17 +429,6 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 		m_TxQueue.Enqueue (pBuffer, nLength);
 	}
 
-	if (!(nFlags & MSG_DONTWAIT))
-	{
-		m_TxEvent.Clear ();
-		m_TxEvent.Wait ();
-
-		if (m_nErrno < 0)
-		{
-			return m_nErrno;
-		}
-	}
-	
 	return nResult;
 }
 
@@ -1408,13 +1409,13 @@ CNetConnection::TStatus CTCPConnection::GetStatus (void) const
 
 	if (   m_State != TCPStateCloseWait
 	    && (   m_nErrno < 0
-	        || m_Event.GetState ()))
+	        || !m_RxQueue.IsEmpty ()))
 	{
 		Status.bRxReady = TRUE;
 	}
 
 	if (   m_nErrno < 0
-	    || m_TxEvent.GetState ())
+	    || m_TxQueue.IsEmpty ())
 	{
 		Status.bTxReady = TRUE;
 	}

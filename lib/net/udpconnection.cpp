@@ -524,7 +524,7 @@ CNetConnection::TStatus CUDPConnection::GetStatus (void) const
 	Status.bConnected = TRUE;
 
 	if (   m_nErrno < 0
-	    || m_Event.GetState ())
+	    || !m_RxQueue.IsEmpty ())
 	{
 		Status.bRxReady = TRUE;
 	}
