@@ -518,6 +518,12 @@ void CDWUSBGadget::HandleUSBSuspend (void)
 				m_pEP[i]->OnSuspend ();
 			}
 		}
+
+		// Disable all interrupts
+		CDWHCIRegister AHBConfig (DWHCI_CORE_AHB_CFG);
+		AHBConfig.Read ();
+		AHBConfig.And (~DWHCI_CORE_AHB_CFG_GLOBALINT_MASK);
+		AHBConfig.Write ();
 	}
 
 	CDWHCIRegister IntStatus (DWHCI_CORE_INT_STAT, DWHCI_CORE_INT_MASK_USB_SUSPEND);
@@ -712,6 +718,8 @@ void CDWUSBGadget::InterruptHandler (void)
 	if (nIntStatus & DWHCI_CORE_INT_MASK_USB_SUSPEND)
 	{
 		HandleUSBSuspend ();
+
+		nIntStatus = 0;
 	}
 
 	if (nIntStatus & DWHCI_CORE_INT_MASK_USB_RESET_INTR)
