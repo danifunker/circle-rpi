@@ -668,7 +668,8 @@ void CDWUSBGadget::HandleOutEPInterrupt (void)
 	LOGDBG ("Out EP interrupt");
 #endif
 
-	assert (   m_State == StateEnumDone
+	assert (   m_State == StateSuspended
+		|| m_State == StateEnumDone
 		|| m_State == StateConfigured);
 
 	CDWHCIRegister AllEPsIntStat (DWHCI_DEV_ALL_EPS_INT_STAT);
@@ -679,9 +680,19 @@ void CDWUSBGadget::HandleOutEPInterrupt (void)
 	{
 		if (nOutEPStat & 1)
 		{
-			assert (nEP <= NumberOfEPs);
-			assert (m_pEP[nEP]);
-			m_pEP[nEP]->HandleOutInterrupt ();
+			if (m_State != StateSuspended)
+			{
+				assert (nEP <= NumberOfEPs);
+				assert (m_pEP[nEP]);
+				m_pEP[nEP]->HandleOutInterrupt ();
+			}
+			else
+			{
+				CDWHCIRegister OutEPIntAck (DWHCI_DEV_OUT_EP_INT (nEP));
+				OutEPIntAck.Set (  DWHCI_DEV_OUT_EP_INT_SETUP_DONE
+						 | DWHCI_DEV_OUT_EP_INT_XFER_COMPLETE);
+				OutEPIntAck.Write ();
+			}
 		}
 	}
 }
