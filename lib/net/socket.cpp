@@ -393,11 +393,31 @@ const u8 *CSocket::GetForeignIP (void) const
 
 CSocket::TStatus CSocket::GetStatus (void) const
 {
-	if (m_hConnection < 0)
-	{
-		return {FALSE, FALSE, FALSE, FALSE};
-	}
+	TStatus Status = {FALSE, FALSE, FALSE, FALSE};
 
 	assert (m_pTransportLayer != 0);
+
+	if (m_nBackLog != 0)	// socket is listening
+	{
+		assert (m_nBackLog <= SOCKET_MAX_LISTEN_BACKLOG);
+
+		for (unsigned i = 0; i < m_nBackLog; i++)
+		{
+			if (m_pTransportLayer->IsConnected (m_hListenConnection[i]))
+			{
+				Status.bRxReady = TRUE;
+
+				break;
+			}
+		}
+
+		return Status;
+	}
+
+	if (m_hConnection < 0)
+	{
+		return Status;
+	}
+
 	return m_pTransportLayer->GetStatus (m_hConnection);
 }
