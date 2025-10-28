@@ -1385,8 +1385,6 @@ int CTCPConnection::NotificationReceived (TICMPNotificationType  Type,
 
 CNetConnection::TStatus CTCPConnection::GetStatus (void) const
 {
-	assert (m_bActiveOpen);
-
 	TStatus Status = {FALSE, FALSE, FALSE, FALSE};
 
 	switch (m_State)
