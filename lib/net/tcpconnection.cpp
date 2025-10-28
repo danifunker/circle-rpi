@@ -245,7 +245,10 @@ int CTCPConnection::Connect (void)
 {
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 
 	switch (m_State)
@@ -273,14 +276,20 @@ int CTCPConnection::Connect (void)
 		return -1;
 	}
 
-	return m_nErrno;
+	int nErrno = m_nErrno;
+	m_nErrno = 0;
+
+	return nErrno;
 }
 
 int CTCPConnection::Accept (CIPAddress *pForeignIP, u16 *pForeignPort)
 {
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 
 	switch (m_State)
@@ -314,14 +323,20 @@ int CTCPConnection::Accept (CIPAddress *pForeignIP, u16 *pForeignPort)
 	assert (pForeignPort != 0);
 	*pForeignPort = m_nForeignPort;
 
-	return m_nErrno;
+	int nErrno = m_nErrno;
+	m_nErrno = 0;
+
+	return nErrno;
 }
 
 int CTCPConnection::Close (void)
 {
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 	
 	switch (m_State)
@@ -362,7 +377,10 @@ int CTCPConnection::Close (void)
 
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 	
 	return 0;
@@ -378,7 +396,10 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 	
 	switch (m_State)
@@ -407,7 +428,10 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 
 		if (m_nErrno < 0)
 		{
-			return m_nErrno;
+			int nErrno = m_nErrno;
+			m_nErrno = 0;
+
+			return nErrno;
 		}
 	}
 
@@ -442,7 +466,10 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 
 	if (m_nErrno < 0)
 	{
-		return m_nErrno;
+		int nErrno = m_nErrno;
+		m_nErrno = 0;
+
+		return nErrno;
 	}
 	
 	unsigned nLength;
@@ -476,7 +503,10 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 
 		if (m_nErrno < 0)
 		{
-			return m_nErrno;
+			int nErrno = m_nErrno;
+			m_nErrno = 0;
+
+			return nErrno;
 		}
 	}
 
