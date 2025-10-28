@@ -332,6 +332,28 @@ int CSocket::ReceiveFrom (void *pBuffer, unsigned nLength, int nFlags,
 	return nResult;
 }
 
+int CSocket::SetOptionReceiveTimeout (unsigned nMicroSeconds)
+{
+	if (m_hConnection < 0)
+	{
+		return -1;
+	}
+
+	assert (m_pTransportLayer != 0);
+	return m_pTransportLayer->SetOptionReceiveTimeout (nMicroSeconds, m_hConnection);
+}
+
+int CSocket::SetOptionSendTimeout (unsigned nMicroSeconds)
+{
+	if (m_hConnection < 0)
+	{
+		return -1;
+	}
+
+	assert (m_pTransportLayer != 0);
+	return m_pTransportLayer->SetOptionSendTimeout (nMicroSeconds, m_hConnection);
+}
+
 int CSocket::SetOptionBroadcast (boolean bAllowed)
 {
 	if (m_hConnection < 0)

@@ -378,6 +378,30 @@ int CTransportLayer::ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeig
 									     pForeignIP, pForeignPort);
 }
 
+int CTransportLayer::SetOptionReceiveTimeout (unsigned nMicroSeconds, int hConnection)
+{
+	assert (hConnection >= 0);
+	if (   hConnection >= (int) m_pConnection.GetCount ()
+	    || m_pConnection[hConnection] == 0)
+	{
+		return -1;
+	}
+
+	return ((CNetConnection *) m_pConnection[hConnection])->SetOptionReceiveTimeout (nMicroSeconds);
+}
+
+int CTransportLayer::SetOptionSendTimeout (unsigned nMicroSeconds, int hConnection)
+{
+	assert (hConnection >= 0);
+	if (   hConnection >= (int) m_pConnection.GetCount ()
+	    || m_pConnection[hConnection] == 0)
+	{
+		return -1;
+	}
+
+	return ((CNetConnection *) m_pConnection[hConnection])->SetOptionSendTimeout (nMicroSeconds);
+}
+
 int CTransportLayer::SetOptionBroadcast (boolean bAllowed, int hConnection)
 {
 	assert (hConnection >= 0);

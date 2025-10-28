@@ -61,6 +61,9 @@ public:
 			    const CIPAddress &rForeignIP, u16 nForeignPort) = 0;
 	virtual int ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeignIP, u16 *pForeignPort) = 0;
 
+	virtual int SetOptionReceiveTimeout (unsigned nMicroSeconds) = 0;
+	virtual int SetOptionSendTimeout (unsigned nMicroSeconds) = 0;
+
 	virtual int SetOptionBroadcast (boolean bAllowed) = 0;
 
 	virtual int SetOptionAddMembership (const CIPAddress &rGroupAddress) = 0;

@@ -162,7 +162,9 @@ CTCPConnection::CTCPConnection (CNetConfig	*pNetConfig,
 	m_nRCV_NXT (0),
 	m_nRCV_WND (TCP_CONFIG_WINDOW),
 	m_nIRS (0),
-	m_nSND_MSS (536)	// RFC 1122 section 4.2.2.6
+	m_nSND_MSS (536),	// RFC 1122 section 4.2.2.6
+	m_nReceiveTimeout (0),
+	m_nSendTimeout (0)
 {
 	s_nConnections++;
 
@@ -205,7 +207,9 @@ CTCPConnection::CTCPConnection (CNetConfig	*pNetConfig,
 	m_nRCV_NXT (0),
 	m_nRCV_WND (TCP_CONFIG_WINDOW),
 	m_nIRS (0),
-	m_nSND_MSS (536)	// RFC 1122 section 4.2.2.6
+	m_nSND_MSS (536),	// RFC 1122 section 4.2.2.6
+	m_nReceiveTimeout (0),
+	m_nSendTimeout (0)
 {
 	s_nConnections++;
 
@@ -424,7 +428,18 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 	    && !m_TxQueue.IsEmpty ())
 	{
 		m_TxEvent.Clear ();
-		m_TxEvent.Wait ();
+
+		if (m_nSendTimeout == 0)
+		{
+			m_TxEvent.Wait ();
+		}
+		else
+		{
+			if (m_TxEvent.WaitWithTimeout (m_nSendTimeout))
+			{
+				m_nErrno = -1;
+			}
+		}
 
 		if (m_nErrno < 0)
 		{
@@ -499,7 +514,18 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 		}
 
 		m_Event.Clear ();
-		m_Event.Wait ();
+
+		if (m_nReceiveTimeout == 0)
+		{
+			m_Event.Wait ();
+		}
+		else
+		{
+			if (m_Event.WaitWithTimeout (m_nReceiveTimeout))
+			{
+				m_nErrno = -1;
+			}
+		}
 
 		if (m_nErrno < 0)
 		{
@@ -534,6 +560,20 @@ int CTCPConnection::ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeign
 		pForeignIP->Set (m_ForeignIP);
 		*pForeignPort = m_nForeignPort;
 	}
+
+	return 0;
+}
+
+int CTCPConnection::SetOptionReceiveTimeout (unsigned nMicroSeconds)
+{
+	m_nReceiveTimeout = nMicroSeconds;
+
+	return 0;
+}
+
+int CTCPConnection::SetOptionSendTimeout (unsigned nMicroSeconds)
+{
+	m_nSendTimeout = nMicroSeconds;
 
 	return 0;
 }

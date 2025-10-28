@@ -47,6 +47,7 @@ CUDPConnection::CUDPConnection (CNetConfig	*pNetConfig,
 :	CNetConnection (pNetConfig, pNetworkLayer, rForeignIP, nForeignPort, nOwnPort, IPPROTO_UDP),
 	m_bOpen (TRUE),
 	m_bActiveOpen (TRUE),
+	m_nReceiveTimeout (0),
 	m_bBroadcastsAllowed (FALSE),
 	m_pHostGroup (0),
 	m_nErrno (0)
@@ -59,6 +60,7 @@ CUDPConnection::CUDPConnection (CNetConfig	*pNetConfig,
 :	CNetConnection (pNetConfig, pNetworkLayer, nOwnPort, IPPROTO_UDP),
 	m_bOpen (TRUE),
 	m_bActiveOpen (FALSE),
+	m_nReceiveTimeout (0),
 	m_bBroadcastsAllowed (FALSE),
 	m_pHostGroup (0),
 	m_nErrno (0)
@@ -186,7 +188,18 @@ int CUDPConnection::Receive (void *pBuffer, int nFlags)
 			}
 
 			m_Event.Clear ();
-			m_Event.Wait ();
+
+			if (m_nReceiveTimeout == 0)
+			{
+				m_Event.Wait ();
+			}
+			else
+			{
+				if (m_Event.WaitWithTimeout (m_nReceiveTimeout))
+				{
+					m_nErrno = -1;
+				}
+			}
 
 			if (m_nErrno < 0)
 			{
@@ -291,7 +304,18 @@ int CUDPConnection::ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeign
 			}
 
 			m_Event.Clear ();
-			m_Event.Wait ();
+
+			if (m_nReceiveTimeout == 0)
+			{
+				m_Event.Wait ();
+			}
+			else
+			{
+				if (m_Event.WaitWithTimeout (m_nReceiveTimeout))
+				{
+					m_nErrno = -1;
+				}
+			}
 
 			if (m_nErrno < 0)
 			{
@@ -317,6 +341,18 @@ int CUDPConnection::ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeign
 	delete pData;
 
 	return nLength;
+}
+
+int CUDPConnection::SetOptionReceiveTimeout (unsigned nMicroSeconds)
+{
+	m_nReceiveTimeout = nMicroSeconds;
+
+	return 0;
+}
+
+int CUDPConnection::SetOptionSendTimeout (unsigned nMicroSeconds)
+{
+	return 0;
 }
 
 int CUDPConnection::SetOptionBroadcast (boolean bAllowed)

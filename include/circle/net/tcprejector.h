@@ -47,6 +47,8 @@ public:
 		    const CIPAddress &rForeignIP, u16 nForeignPort)	{ return -1; }
 	int ReceiveFrom (void *pBuffer, int nFlags,
 			 CIPAddress *pForeignIP, u16 *pForeignPort)	{ return -1; }
+	int SetOptionReceiveTimeout (unsigned nMicroSeconds)		{ return -1; }
+	int SetOptionSendTimeout (unsigned nMicroSeconds)		{ return -1; }
 	int SetOptionBroadcast (boolean bAllowed)			{ return -1; }
 	int SetOptionAddMembership (const CIPAddress &rGroupAddress)	{ return -1; }
 	int SetOptionDropMembership (const CIPAddress &rGroupAddress)	{ return -1; }
