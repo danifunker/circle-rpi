@@ -323,11 +323,6 @@ int CTCPConnection::Accept (CIPAddress *pForeignIP, u16 *pForeignPort)
 
 int CTCPConnection::Close (void)
 {
-	if (m_nErrno < 0)
-	{
-		return m_nErrno;
-	}
-	
 	switch (m_State)
 	{
 	case TCPStateClosed:
