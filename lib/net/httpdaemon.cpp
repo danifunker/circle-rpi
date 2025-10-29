@@ -4,7 +4,7 @@
 // A simple HTTP webserver
 //
 // Circle - A C++ bare metal environment for Raspberry Pi
-// Copyright (C) 2015-2021  R. Stange <rsta2@o2online.de>
+// Copyright (C) 2015-2025  R. Stange <rsta2@gmx.net>
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -40,13 +40,15 @@ static const char FromHTTPDaemon[] = "httpd";
 unsigned CHTTPDaemon::s_nInstanceCount = 0;
 
 CHTTPDaemon::CHTTPDaemon (CNetSubSystem *pNetSubSystem, CSocket *pSocket,
-			  unsigned nMaxContentSize, u16 nPort, unsigned nMaxMultipartSize)
+			  unsigned nMaxContentSize, u16 nPort, unsigned nMaxMultipartSize,
+			  unsigned nTimeoutSeconds)
 :	CTask (HTTPD_STACK_SIZE),
 	m_pNetSubSystem (pNetSubSystem),
 	m_pSocket (pSocket),
 	m_nMaxContentSize (nMaxContentSize),
 	m_nPort (nPort),
 	m_nMaxMultipartSize (nMaxMultipartSize),
+	m_nTimeoutSeconds (nTimeoutSeconds),
 	m_pContentBuffer (0)
 {
 	s_nInstanceCount++;
@@ -170,6 +172,8 @@ void CHTTPDaemon::Listener (void)
 void CHTTPDaemon::Worker (void)
 {
 	assert (m_pSocket != 0);
+
+	m_pSocket->SetOptionReceiveTimeout (m_nTimeoutSeconds * 1000000);
 
 	// parse HTTP request
 	THTTPStatus Status = ParseRequest ();
