@@ -299,7 +299,12 @@ size_t CDWUSBGadgetEndpoint::FinishTransfer (void)
 
 	if (nXferSize)
 	{
-		debug_hexdump (m_pTransferBuffer, nXferSize, From);
+		size_t nDumpSize = nXferSize > 16 ? 16 : nXferSize;  // Max 16 bytes
+		debug_hexdump (m_pTransferBuffer, nDumpSize, From);
+		if (nXferSize > 16)
+		{
+			LOGDBG ("... (%u more bytes not shown)", nXferSize - 16);
+		}
 	}
 #endif
 
