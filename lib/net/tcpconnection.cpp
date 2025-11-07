@@ -1424,6 +1424,7 @@ CNetConnection::TStatus CTCPConnection::GetStatus (void) const
 
 	switch (m_State)
 	{
+	// connection not initiated yet or closed by user
 	case TCPStateClosed:
 	case TCPStateListen:
 	case TCPStateFinWait1:
@@ -1433,7 +1434,8 @@ CNetConnection::TStatus CTCPConnection::GetStatus (void) const
 	case TCPStateTimeWait:
 		return Status;
 
-	case TCPStateCloseWait:
+	// connection initiated and not closed by user yet
+	case TCPStateCloseWait:	// FIN received from peer, waiting for user to close
 	case TCPStateSynSent:
 	case TCPStateSynReceived:
 	case TCPStateEstablished:
@@ -1442,9 +1444,9 @@ CNetConnection::TStatus CTCPConnection::GetStatus (void) const
 
 	Status.bConnected = TRUE;
 
-	if (   m_State != TCPStateCloseWait
-	    && (   m_nErrno < 0
-	        || !m_RxQueue.IsEmpty ()))
+	if (   m_State == TCPStateCloseWait
+	    || m_nErrno < 0
+	    || !m_RxQueue.IsEmpty ())
 	{
 		Status.bRxReady = TRUE;
 	}

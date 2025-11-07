@@ -87,7 +87,7 @@ public:
 	struct TStatus
 	{
 		boolean bConnected;	///< Is connected
-		boolean bRxReady;	///< Ready to receive without blocking
+		boolean bRxReady;	///< Ready to receive without blocking, or shutdown from peer
 		boolean bTxReady;	///< Ready to transmit without blocking
 		boolean bException;	///< Exception arrived (always FALSE)
 	};
