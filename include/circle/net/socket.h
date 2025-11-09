@@ -24,6 +24,7 @@
 #include <circle/net/ipaddress.h>
 #include <circle/net/netconfig.h>
 #include <circle/net/transportlayer.h>
+#include <circle/net/error.h>
 #include <circle/types.h>
 
 #define SOCKET_MAX_LISTEN_BACKLOG	32

@@ -29,6 +29,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include <circle/net/tcpconnection.h>
+#include <circle/net/error.h>
 #include <circle/macros.h>
 #include <circle/util.h>
 #include <circle/logger.h>
@@ -274,7 +275,7 @@ int CTCPConnection::Connect (void)
 		// fall through
 
 	case TCPStateClosed:
-		return -1;
+		return -NET_ERROR_INVALID_VALUE;
 	}
 
 	return m_nErrno;
@@ -300,7 +301,7 @@ int CTCPConnection::Accept (CIPAddress *pForeignIP, u16 *pForeignPort)
 	case TCPStateClosing:
 	case TCPStateLastAck:
 	case TCPStateTimeWait:
-		return -1;
+		return -NET_ERROR_CONNECTION_RESET;
 
 	case TCPStateListen:
 		m_Event.Clear ();
@@ -326,7 +327,7 @@ int CTCPConnection::Close (void)
 	switch (m_State)
 	{
 	case TCPStateClosed:
-		return -1;
+		return -NET_ERROR_INVALID_VALUE;
 
 	case TCPStateListen:
 	case TCPStateSynSent:
@@ -356,7 +357,7 @@ int CTCPConnection::Close (void)
 	case TCPStateClosing:
 	case TCPStateLastAck:
 	case TCPStateTimeWait:
-		return -1;
+		return -NET_ERROR_CONNECTION_RESET;
 	}
 
 	if (m_nErrno < 0)
@@ -372,7 +373,7 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 	if (   nFlags != 0
 	    && nFlags != MSG_DONTWAIT)
 	{
-		return -1;
+		return -NET_ERROR_INVALID_VALUE;
 	}
 
 	if (m_nErrno < 0)
@@ -389,7 +390,7 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 	case TCPStateClosing:
 	case TCPStateLastAck:
 	case TCPStateTimeWait:
-		return -1;
+		return -NET_ERROR_CONNECTION_RESET;
 
 	case TCPStateSynSent:
 	case TCPStateSynReceived:
@@ -411,7 +412,7 @@ int CTCPConnection::Send (const void *pData, unsigned nLength, int nFlags)
 		{
 			if (m_TxEvent.WaitWithTimeout (m_nSendTimeout))
 			{
-				m_nErrno = -1;
+				return -NET_ERROR_WOULD_BLOCK;
 			}
 		}
 
@@ -447,7 +448,7 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 	if (   nFlags != 0
 	    && nFlags != MSG_DONTWAIT)
 	{
-		return -1;
+		return -NET_ERROR_INVALID_VALUE;
 	}
 
 	if (m_nErrno < 0)
@@ -468,7 +469,7 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 		case TCPStateClosing:
 		case TCPStateLastAck:
 		case TCPStateTimeWait:
-			return -1;
+			return -NET_ERROR_CONNECTION_RESET;
 
 		case TCPStateSynSent:
 		case TCPStateSynReceived:
@@ -491,7 +492,7 @@ int CTCPConnection::Receive (void *pBuffer, int nFlags)
 		{
 			if (m_Event.WaitWithTimeout (m_nReceiveTimeout))
 			{
-				m_nErrno = -1;
+				return -NET_ERROR_WOULD_BLOCK;
 			}
 		}
 
@@ -550,12 +551,12 @@ int CTCPConnection::SetOptionBroadcast (boolean bAllowed)
 
 int CTCPConnection::SetOptionAddMembership (const CIPAddress &rGroupAddress)
 {
-	return -1;
+	return -NET_ERROR_OPERATION_NOT_SUPPORTED;
 }
 
 int CTCPConnection::SetOptionDropMembership (const CIPAddress &rGroupAddress)
 {
-	return -1;
+	return -NET_ERROR_OPERATION_NOT_SUPPORTED;
 }
 
 boolean CTCPConnection::IsConnected (void) const
@@ -573,7 +574,7 @@ void CTCPConnection::Process (void)
 {
 	if (m_bTimedOut)
 	{
-		m_nErrno = -1;
+		m_nErrno = -NET_ERROR_CONNECTION_TIMED_OUT;
 		NEW_STATE (TCPStateClosed);
 		m_Event.Set ();
 		return;
@@ -881,7 +882,7 @@ int CTCPConnection::PacketReceived (const void	*pPacket,
 			{
 				NEW_STATE (TCPStateClosed);
 				m_bSendSYN = FALSE;
-				m_nErrno = -1;
+				m_nErrno = -NET_ERROR_CONNECTION_REFUSED;
 
 				m_Event.Set ();
 			}
@@ -955,7 +956,7 @@ int CTCPConnection::PacketReceived (const void	*pPacket,
 					{
 						SendSegment (TCP_FLAG_RESET, m_nSND_NXT);
 						NEW_STATE (TCPStateClosed);
-						m_nErrno = -1;
+						m_nErrno = -NET_ERROR_PROTOCOL_ERROR;
 						m_Event.Set ();
 					}
 
@@ -1029,7 +1030,7 @@ int CTCPConnection::PacketReceived (const void	*pPacket,
 				}
 				else
 				{
-					m_nErrno = -1;
+					m_nErrno = -NET_ERROR_CONNECTION_RESET;
 					NEW_STATE (TCPStateClosed);
 					m_Event.Set ();
 					return 1;
@@ -1041,7 +1042,7 @@ int CTCPConnection::PacketReceived (const void	*pPacket,
 			case TCPStateFinWait1:
 			case TCPStateFinWait2:
 			case TCPStateCloseWait:
-				m_nErrno = -1;
+				m_nErrno = -NET_ERROR_CONNECTION_RESET;
 				m_RetransmissionQueue.Flush ();
 				m_TxQueue.Flush ();
 				m_RxQueue.Flush ();
@@ -1076,7 +1077,7 @@ int CTCPConnection::PacketReceived (const void	*pPacket,
 			}
 			
 			SendSegment (TCP_FLAG_RESET, m_nSND_NXT);
-			m_nErrno = -1;
+			m_nErrno = -NET_ERROR_PROTOCOL_ERROR;
 			m_RetransmissionQueue.Flush ();
 			m_TxQueue.Flush ();
 			m_RxQueue.Flush ();
@@ -1407,7 +1408,9 @@ int CTCPConnection::NotificationReceived (TICMPNotificationType  Type,
 		return 0;
 	}
 
-	m_nErrno = -1;
+	m_nErrno =   Type == ICMPNotificationDestUnreach
+		   ? -NET_ERROR_DESTINATION_UNREACHABLE
+		   : -NET_ERROR_PROTOCOL_ERROR;
 
 	StopTimer (TCPTimerRetransmission);
 	NEW_STATE (TCPStateTimeWait);
