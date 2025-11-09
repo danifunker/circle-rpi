@@ -441,7 +441,7 @@ THTTPStatus CHTTPDaemon::ParseRequest (void)
 
 	if (nResult < 0)
 	{
-		CLogger::Get ()->Write (FromHTTPDaemon, LogError, "Receive failed");
+		CLogger::Get ()->Write (FromHTTPDaemon, LogDebug, "Receive failed (%d)", nResult);
 
 		return HTTPUnknownError;
 	}
