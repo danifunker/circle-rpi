@@ -2,7 +2,7 @@
 // string.cpp
 //
 // Circle - A C++ bare metal environment for Raspberry Pi
-// Copyright (C) 2014-2021  R. Stange <rsta2@o2online.de>
+// Copyright (C) 2014-2025  R. Stange <rsta2@gmx.net>
 //
 // ftoa() inspired by Arjan van Vught <info@raspberrypi-dmx.nl>
 //
@@ -541,9 +541,20 @@ void CString::FormatV (const char *pFormat, va_list Args)
 				nBase = 10;
 				goto FormatNumber;
 
+			case 'p':
+				bAlternate = TRUE;
+#if STDLIB_SUPPORT >= 1
+				bLongLong = FALSE;
+#endif
+#if AARCH == 32
+				bLong = FALSE;
+#else
+				bLong = TRUE;
+#endif
+				// fall through
+
 			case 'x':
 			case 'X':
-			case 'p':
 				if (bAlternate)
 				{
 					PutString (*pFormat == 'X' ? "0X" : "0x");
