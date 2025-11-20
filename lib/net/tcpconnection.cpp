@@ -527,7 +527,7 @@ int CTCPConnection::ReceiveFrom (void *pBuffer, int nFlags, CIPAddress *pForeign
 		*pForeignPort = m_nForeignPort;
 	}
 
-	return 0;
+	return nResult;
 }
 
 int CTCPConnection::SetOptionReceiveTimeout (unsigned nMicroSeconds)
