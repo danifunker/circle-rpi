@@ -546,11 +546,7 @@ void CString::FormatV (const char *pFormat, va_list Args)
 #if STDLIB_SUPPORT >= 1
 				bLongLong = FALSE;
 #endif
-#if AARCH == 32
-				bLong = FALSE;
-#else
 				bLong = TRUE;
-#endif
 				// fall through
 
 			case 'x':
