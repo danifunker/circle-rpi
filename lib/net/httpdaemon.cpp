@@ -28,7 +28,7 @@
 #include <circle/util.h>
 #include <assert.h>
 
-#define HTTPD_VERSION		"0.02"
+#define HTTPD_VERSION		"0.03"
 #define SERVER			"CHTTPDaemon/" HTTPD_VERSION " (Circle)"
 
 #define MAX_CLIENTS		10
@@ -475,7 +475,7 @@ THTTPStatus CHTTPDaemon::ParseRequest (void)
 
 THTTPStatus CHTTPDaemon::ParseMethod (char *pLine)
 {
-	// "METHOD uri HTTP/1.1" expected
+	// "METHOD uri HTTP/1.[01]" expected
 
 	char *pToken;
 	char *pSavePtr;
@@ -526,7 +526,8 @@ THTTPStatus CHTTPDaemon::ParseMethod (char *pLine)
 		return HTTPBadRequest;
 	}
 
-	if (strcmp (pToken, "1.1") != 0)
+	if (   strcmp (pToken, "1.0") != 0
+	    && strcmp (pToken, "1.1") != 0)
 	{
 		return HTTPVersionNotSupported;
 	}
