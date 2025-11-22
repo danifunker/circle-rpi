@@ -2,7 +2,7 @@
 /// \file memio.h
 //
 // Circle - A C++ bare metal environment for Raspberry Pi
-// Copyright (C) 2014-2021  R. Stange <rsta2@o2online.de>
+// Copyright (C) 2014-2025  R. Stange <rsta2@gmx.net>
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,40 +27,56 @@ extern "C" {
 #endif
 
 /// \brief Read 8-bit value from MMIO address
-static inline u8 read8 (uintptr nAddress)
+static inline u8 read8 (uintptr ulAddress)
 {
-	return *(u8 volatile *) nAddress;
+	return *(volatile u8 *) ulAddress;
 }
 
 /// \brief Write 8-bit value to MMIO address
-static inline void write8 (uintptr nAddress, u8 uchValue)
+static inline void write8 (uintptr ulAddress, u8 uchValue)
 {
-	*(u8 volatile *) nAddress = uchValue;
+	*(volatile u8 *) ulAddress = uchValue;
 }
 
 /// \brief Read 16-bit value from MMIO address
-static inline u16 read16 (uintptr nAddress)
+static inline u16 read16 (uintptr ulAddress)
 {
-	return *(u16 volatile *) nAddress;
+	return *(volatile u16 *) ulAddress;
 }
 
 /// \brief Write 16-bit value to MMIO address
-static inline void write16 (uintptr nAddress, u16 usValue)
+static inline void write16 (uintptr ulAddress, u16 usValue)
 {
-	*(u16 volatile *) nAddress = usValue;
+	*(volatile u16 *) ulAddress = usValue;
 }
 
 /// \brief Read 32-bit value from MMIO address
-static inline u32 read32 (uintptr nAddress)
+static inline u32 read32 (uintptr ulAddress)
 {
-	return *(u32 volatile *) nAddress;
+	return *(volatile u32 *) ulAddress;
 }
 
 /// \brief Write 32-bit value to MMIO address
-static inline void write32 (uintptr nAddress, u32 nValue)
+static inline void write32 (uintptr ulAddress, u32 nValue)
 {
-	*(u32 volatile *) nAddress = nValue;
+	*(volatile u32 *) ulAddress = nValue;
 }
+
+#if AARCH == 64
+
+/// \brief Read 64-bit value from MMIO address
+static inline u64 read64 (uintptr ulAddress)
+{
+	return *(volatile u64 *) ulAddress;
+}
+
+/// \brief Write 64-bit value to MMIO address
+static inline void write64 (uintptr ulAddress, u64 nValue)
+{
+	*(volatile u64 *) ulAddress = nValue;
+}
+
+#endif
 
 #ifdef __cplusplus
 }
