@@ -22,8 +22,10 @@
 
 #include <nvme/nvmesharedmemallocator.h>
 #include <circle/device.h>
+#include <circle/interrupt.h>
 #include <circle/bcmpciehostbridge.h>
 #include <circle/fs/partitionmanager.h>
+#include <circle/sched/synchronizationevent.h>
 #include <circle/types.h>
 
 #define NVME_LBA_SIZE	512	// The only supported NVMe LBA size format
@@ -42,7 +44,9 @@ enum NVME_STATUS : int
 class CNVMeDevice: public CDevice	/// Driver for PCIe NVMe Controller
 {
 public:
-	CNVMeDevice(void);
+	/// \param pInterrupt Pointer to interrupt system object
+	CNVMeDevice(CInterruptSystem *pInterrupt);
+
 	~CNVMeDevice(void);
 
 	/// \return Operation successful?
@@ -126,9 +130,18 @@ private:
 	// Wait for CSTS.RDY to equal target (true -> 1, false -> 0)
 	bool WaitReady(bool bOn);
 
+#ifdef NO_BUSY_WAIT
+	static void InterruptHandler (void *pParam);
+#endif
+
 private:
 	CBcmPCIeHostBridge m_PCIeExternal;
 	CNVMeSharedMemAllocator m_Allocator;
+
+#ifdef NO_BUSY_WAIT
+	CInterruptSystem *m_pInterrupt;
+	bool m_bIRQConnected;
+#endif
 
 	u32 m_nVersion;
 	u64 m_ulCaps;
@@ -142,6 +155,10 @@ private:
 	u64 m_ulOffset;
 
 	CPartitionManager *m_pPartitionManager;
+
+#ifdef NO_BUSY_WAIT
+	CSynchronizationEvent m_Event;
+#endif
 };
 
 #endif

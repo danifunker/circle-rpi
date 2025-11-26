@@ -5,7 +5,6 @@
 //
 // Support for:
 //	Tested with NVMe v1.4 only, v1.3 may also work
-//	Polling driver
 //	One I/O queue only
 //	512 Byte LBA size format only
 //	4KB page size only
@@ -32,7 +31,6 @@
 #include <nvme/nvmeprp.h>
 #include <nvme/nvmehelper.h>
 #include <circle/devicenameservice.h>
-#include <circle/interrupt.h>
 #include <circle/sysconfig.h>
 #include <circle/memory.h>
 #include <circle/memio.h>
@@ -67,6 +65,10 @@
 	#define NVME_REG_VER_MNR__MASK		(0xFF << 8)
 	#define NVME_REG_VER_TER__SHIFT		0
 	#define NVME_REG_VER_TER__MASK		(0xFF << 0)
+#define NVME_REG_INTMS			0x000C
+#define NVME_REG_INTMC			0x0010
+	#define NVME_REG_INTM_ALL_VECTORS	0xFFFFFFFFU
+	#define NVME_REG_INTM_VECTOR0		BIT(0)
 #define NVME_REG_CC			0x0014
 	#define NVME_REG_CC_IOCQES__SHIFT	20
 	#define NVME_REG_CC_IOCQES__MASK	(0xF << 20)
@@ -177,10 +179,14 @@ static inline void MmioWrite32(unsigned nOffset, u32 nValue)
 	write32 (MEM_PCIE_EXT_RANGE_START + nOffset, nValue);
 }
 
-CNVMeDevice::CNVMeDevice(void)
-: 	m_PCIeExternal (PCIE_BUS_EXTERNAL, CInterruptSystem::Get()),
+CNVMeDevice::CNVMeDevice(CInterruptSystem *pInterrupt)
+: 	m_PCIeExternal (PCIE_BUS_EXTERNAL, pInterrupt),
 	m_Allocator (CMemorySystem::GetCoherentPage (COHERENT_SLOT_NVME),
 		     CMemorySystem::GetCoherentPage (COHERENT_SLOT_NVME + 1)),
+#ifdef NO_BUSY_WAIT
+	m_pInterrupt(pInterrupt),
+	m_bIRQConnected(false),
+#endif
 	m_ulOffset(0),
 	m_pPartitionManager(nullptr)
 {
@@ -199,6 +205,18 @@ CNVMeDevice::~CNVMeDevice(void)
 {
 	delete m_pPartitionManager;
 	m_pPartitionManager = nullptr;
+
+#ifdef NO_BUSY_WAIT
+	if (m_bIRQConnected)
+	{
+		MmioWrite32(NVME_REG_INTMS, NVME_REG_INTM_ALL_VECTORS);
+
+		assert(m_pInterrupt);
+		m_pInterrupt->DisconnectIRQ(ARM_IRQ_PCIE_EXT_HOST_INTA);
+
+		m_bIRQConnected = false;
+	}
+#endif
 
         // Reset controller
         MmioWrite32(NVME_REG_CC, MmioRead32(NVME_REG_CC) & ~NVME_REG_CC_EN);
@@ -289,6 +307,17 @@ bool CNVMeDevice::Initialize(void)
 
 		return false;
 	}
+
+#ifdef NO_BUSY_WAIT
+	// Connect IRQ
+	assert(!m_bIRQConnected);
+	m_bIRQConnected = true;
+
+	MmioWrite32(NVME_REG_INTMS, NVME_REG_INTM_ALL_VECTORS);
+
+	assert(m_pInterrupt);
+	m_pInterrupt->ConnectIRQ (ARM_IRQ_PCIE_EXT_HOST_INTA, InterruptHandler, this);
+#endif
 
 	// Create admin queues
 	u32 nRet = CreateAdminQueues();
@@ -593,8 +622,8 @@ int CNVMeDevice::CreateIoQueue(u16 uQueueId, u16 uEntries)
 
 	// Build Create CQ
 	u32 uCdw10 = (uQueueId & 0xffff) | ((uEntries - 1) << 16);
-	// cdw11: PC=1(phys contig) | PRIO=0 | IRQ vector=0
-	u32 uCdw11 = 1;
+	// cdw11: PC=1(phys contig) | IEN=1 | PRIO=0 | IRQ vector=0
+	u32 uCdw11 = BIT(0) | BIT(1) | 0 << 16;
 	// Data pointer: PRP1 = CQ physical base, PRP2 = 0
 	u32 nRet = AdminCommand(NVME_ADMIN_OPC_CREATE_IO_CQ, 0, uCdw10, uCdw11, m_IoQueue.nCqPhys);
 	if (nRet != NVME_STATUS_OK) return nRet;
@@ -681,6 +710,12 @@ int CNVMeDevice::SubmitCommand(TQueue *pQueue, u8 uchOpcode, u32 nNsId,
 	pCmd->cdw11 = nCdw11;
 	pCmd->cdw12 = nCdw12;
 
+#ifdef NO_BUSY_WAIT
+	m_Event.Clear();
+
+	MmioWrite32(NVME_REG_INTMC, NVME_REG_INTM_VECTOR0);
+#endif
+
 	// Doorbell write for submission queue
 	pQueue->nSqTail = (pQueue->nSqTail + 1) % pQueue->nEntries;
 	DataSyncBarrier();
@@ -700,6 +735,17 @@ int CNVMeDevice::PollForCompletion(TQueue *pQueue, u16 usCid, unsigned nTimeoutH
 
 #ifdef NVME_DEBUG
 	unsigned nStartClockTicks = CTimer::Get()->GetClockTicks();
+#endif
+
+#ifdef NO_BUSY_WAIT
+	if (m_Event.WaitWithTimeout(1000000UL * nTimeoutHZ / HZ))
+	{
+#ifdef NVME_DEBUG
+		LOGDBG("%s command timed out", pQueue->pName);
+#endif
+
+		return NVME_STATUS_ERROR_TIMEOUT;
+	}
 #endif
 
 	while (true)
@@ -737,6 +783,15 @@ int CNVMeDevice::PollForCompletion(TQueue *pQueue, u16 usCid, unsigned nTimeoutH
 			break;
 		}
 
+#ifdef NO_BUSY_WAIT
+#ifdef NVME_DEBUG
+		else
+		{
+			LOGDBG("Interrupt without completion");
+		}
+#endif
+#endif
+
 		if (CTimer::Get()->GetTicks() - nStart > nTimeoutHZ)
 		{
 #ifdef NVME_DEBUG
@@ -746,10 +801,8 @@ int CNVMeDevice::PollForCompletion(TQueue *pQueue, u16 usCid, unsigned nTimeoutH
 			return NVME_STATUS_ERROR_TIMEOUT;
 		}
 
-#ifdef NO_BUSY_WAIT
-		CScheduler::Get()->usSleep(50);
-#else
-		CTimer::Get()->usDelay(50);
+#ifndef NO_BUSY_WAIT
+		CTimer::Get()->usDelay(1);
 #endif
 	}
 
@@ -791,7 +844,7 @@ bool CNVMeDevice::WaitReady(bool bOn)
 	return false;
 }
 
-void CNVMeDevice::DumpStatus()
+void CNVMeDevice::DumpStatus(void)
 {
 	for (u32 nOffset = 0; nOffset <= 0x3F; nOffset += 4)
 	{
@@ -802,3 +855,21 @@ void CNVMeDevice::DumpStatus()
 
 	LOGDBG("%lu bytes shared memory free", m_Allocator.GetFreeSpace ());
 }
+
+#ifdef NO_BUSY_WAIT
+
+void CNVMeDevice::InterruptHandler (void *pParam)
+{
+	CNVMeDevice *pThis = static_cast<CNVMeDevice *> (pParam);
+	assert (pThis);
+
+	MmioWrite32(NVME_REG_INTMS, NVME_REG_INTM_VECTOR0);
+
+#ifdef NVME_DEBUG
+	//LOGDBG("IRQ");
+#endif
+
+	pThis->m_Event.Set();
+}
+
+#endif
