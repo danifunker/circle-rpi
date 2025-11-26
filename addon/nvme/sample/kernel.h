@@ -20,6 +20,10 @@
 #ifndef _kernel_h
 #define _kernel_h
 
+#if RASPPI < 5
+	#error This sample does only run on the Raspberry Pi 5.
+#endif
+
 #define TEST_DUMP_MBR	1		// Dump the Master Boot Block
 #define TEST_RAW_READ	2		// Read raw blocks
 #define TEST_CIRCLE_FS	3		// Use native FAT FS of Circle
@@ -38,6 +42,7 @@
 #include <circle/interrupt.h>
 #include <circle/timer.h>
 #include <circle/logger.h>
+#include <circle/sched/scheduler.h>
 #include <circle/device.h>
 #include <nvme/nvme.h>
 #include <circle/types.h>
@@ -76,6 +81,9 @@ private:
 	CInterruptSystem	m_Interrupt;
 	CTimer			m_Timer;
 	CLogger			m_Logger;
+#ifdef NO_BUSY_WAIT
+	CScheduler		m_Scheduler;
+#endif
 	CDevice			*m_pTarget;
 
 	CNVMeDevice		m_NVMe;

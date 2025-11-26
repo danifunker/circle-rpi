@@ -18,6 +18,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 #include "kernel.h"
+#include "ledtask.h"
 #include <circle/string.h>
 #include <circle/synchronize.h>
 #include <circle/macros.h>
@@ -70,7 +71,8 @@ CKernel::CKernel (void)
 :	m_Screen (m_Options.GetWidth (), m_Options.GetHeight ()),
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
-	m_pTarget (nullptr)
+	m_pTarget (nullptr),
+	m_NVMe (&m_Interrupt)
 {
 	m_ActLED.Blink (5);	// show we are alive
 }
@@ -157,6 +159,10 @@ TShutdownMode CKernel::Run (void)
 	}
 #elif TESTSEL == TEST_RAW_READ
 	////////////////////////////////////////////////////////////////////////
+#ifdef NO_BUSY_WAIT
+	new CLEDTask (&m_ActLED);
+#endif
+
 	const unsigned BlocksToRead = 100000;
 	const size_t BlockSize = 4096;
 
