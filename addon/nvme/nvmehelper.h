@@ -26,7 +26,7 @@
 static inline uintptr PhysicalOf(void *pVirt)
 {
 	return   reinterpret_cast<uintptr>(pVirt)
-	       | CBcmPCIeHostBridge::GetDMAAddress (PCIE_BUS_EXTERNAL);
+	       | CBcmPCIeHostBridge::GetDMAAddress (PCIE_BUS_NVME);
 }
 
 #endif

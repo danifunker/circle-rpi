@@ -180,7 +180,7 @@ static inline void MmioWrite32(unsigned nOffset, u32 nValue)
 }
 
 CNVMeDevice::CNVMeDevice(CInterruptSystem *pInterrupt)
-: 	m_PCIeExternal (PCIE_BUS_EXTERNAL, pInterrupt),
+: 	m_PCIeExternal (PCIE_BUS_NVME, pInterrupt),
 	m_Allocator (CMemorySystem::GetCoherentPage (COHERENT_SLOT_NVME),
 		     CMemorySystem::GetCoherentPage (COHERENT_SLOT_NVME + 1)),
 #ifdef NO_BUSY_WAIT
