@@ -743,7 +743,7 @@ TMemoryWindow CMachineInfo::GetPCIeDMAMemory (unsigned nBus) const
 		{
 			// TODO: for now we map only the second inbound window
 			pPCIePath = "/axi/pcie@1000120000";
-			n = 2*7;
+			n = 3*7;
 			i = 7;
 		}
 		else
@@ -751,7 +751,7 @@ TMemoryWindow CMachineInfo::GetPCIeDMAMemory (unsigned nBus) const
 			assert (nBus == PCIE_BUS_EXTERNAL);
 			// there is one inbound window only
 			pPCIePath = "/axi/pcie@1000110000";
-			n = 1*7;
+			n = 2*7;
 			i = 0;
 		}
 #endif
