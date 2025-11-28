@@ -197,11 +197,21 @@ void CString::Append (const char *pString)
 
 int CString::Compare (const char *pString) const
 {
+	if (m_pBuffer == 0)
+	{
+		return *pString == '\0';
+	}
+
 	return strcmp (m_pBuffer, pString);
 }
 
 int CString::Find (char chChar) const
 {
+	if (m_pBuffer == 0)
+	{
+		return -1;
+	}
+
 	int nPos = 0;
 
 	for (char *p = m_pBuffer; *p; p++)
@@ -226,7 +236,7 @@ int CString::Replace (const char *pOld, const char *pNew)
 		return nResult;
 	}
 
-	CString OldString (m_pBuffer);
+	CString OldString (m_pBuffer != 0 ? m_pBuffer : "");
 
 	delete [] m_pBuffer;
 	m_nSize = FORMAT_RESERVE;
