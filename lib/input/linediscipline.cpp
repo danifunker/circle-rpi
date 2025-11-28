@@ -29,7 +29,9 @@ CLineDiscipline::CLineDiscipline (CDevice *pInputDevice, CDevice *pOutputDevice)
 	m_pInEnd (m_Buffer),
 	m_bInsert (TRUE),
 	m_pOutBufferPtr (m_OutBuffer),
-	m_InputState (StateStart)
+	m_InputState (StateStart),
+	m_nHistorySize (0),
+	m_nHistoryIndex (0)
 {
 }
 
@@ -108,6 +110,8 @@ int CLineDiscipline::Read (void *pBuffer, size_t nCount)
 
 				Flush ();
 
+				AppendHistory ();
+
 				// prepare for output
 				m_pOutPtr = m_Buffer;
 				m_Mode = LineModeOutput;
@@ -181,6 +185,14 @@ int CLineDiscipline::Read (void *pBuffer, size_t nCount)
 				m_bInsert = !m_bInsert;
 				break;
 
+			case EscapeKeyUp:
+				MoveHistory (-1);
+				break;
+
+			case EscapeKeyDown:
+				MoveHistory (1);
+				break;
+
 			default:
 				if (' ' <= nChar && nChar <= EscapeKeyStart)	// printable char?
 				{
@@ -233,6 +245,7 @@ int CLineDiscipline::Read (void *pBuffer, size_t nCount)
 						}
 					}
 				}
+				break;
 			}
 		}
 		else if (m_Mode == LineModeOutput)
@@ -305,6 +318,86 @@ void CLineDiscipline::SetOptionRawMode (boolean bEnable)
 void CLineDiscipline::SetOptionEcho (boolean bEnable)
 {
 	m_bEcho = bEnable;
+}
+
+void CLineDiscipline::AppendHistory (void)
+{
+	// do append, if edit buffer is not empty and not equal to previous line
+	if (   m_Buffer[0] != '\n'
+	    && (   m_nHistorySize == 0
+		|| m_History[m_nHistorySize-1].Compare (m_Buffer) != 0))
+	{
+		// scroll history up, if it is full
+		if (m_nHistorySize == MaxHistorySize)
+		{
+			for (unsigned i = 0; i < MaxHistorySize-1; i++)
+			{
+				m_History[i] = m_History[i+1];
+			}
+		}
+		else
+		{
+			m_nHistorySize++;	// otherwise increase history size
+		}
+
+		// set last history entry to edit buffer
+		m_History[m_nHistorySize-1] = m_Buffer;
+	}
+
+	// set current index to behind last line in history
+	m_nHistoryIndex = m_nHistorySize;
+}
+
+void CLineDiscipline::MoveHistory (int nBackFore)
+{
+	// do not move accross boundaries
+	unsigned nNewIndex = m_nHistoryIndex + nBackFore;	// may wrap
+	if (nNewIndex <= m_nHistorySize)
+	{
+		// clear line on device, if necessary
+		const char *p = m_pInPtr;
+		for (; p < m_pInEnd; p++)
+		{
+			PutChar (' ');
+		}
+
+		for (; p > m_Buffer; p--)
+		{
+			PutChar ('\b');
+			PutChar (' ');
+			PutChar ('\b');
+		}
+
+		Flush ();
+
+		// terminate edit buffer
+		*m_pInEnd++ = '\n';
+		*m_pInEnd = '\0';
+
+		// insert or append edit buffer to history
+		if (m_nHistoryIndex < m_nHistorySize)
+		{
+			m_History[m_nHistoryIndex] = m_Buffer;
+		}
+
+		m_nHistoryIndex = nNewIndex;
+
+		m_pInEnd = m_pInPtr = m_Buffer;		// clear edit buffer
+
+		// if we are inside history,
+		// set-up edit buffer and device with current line from history
+		if (m_nHistoryIndex < m_nHistorySize)
+		{
+			for (const char *p = m_History[m_nHistoryIndex]; *p != '\n'; p++)
+			{
+				PutChar (*m_pInPtr++ = *p);
+
+				m_pInEnd++;
+			}
+
+			Flush ();
+		}
+	}
 }
 
 int CLineDiscipline::GetChar (void)

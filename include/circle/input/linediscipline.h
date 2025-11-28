@@ -21,6 +21,7 @@
 #define _circle_input_linediscipline_h
 
 #include <circle/device.h>
+#include <circle/string.h>
 #include <circle/types.h>
 
 class CLineDiscipline : public CDevice
@@ -35,6 +36,9 @@ public:
 	void SetOptionEcho (boolean bEnable);
 
 private:
+	void AppendHistory (void);
+	void MoveHistory (int nBackFore);
+
 	enum TEscapeKey : int
 	{
 		EscapeKeyStart	= 256,
@@ -96,6 +100,11 @@ private:
 
 	TInputState m_InputState;
 	int m_nInputParam;
+
+	static const unsigned MaxHistorySize = 40;
+	CString m_History[MaxHistorySize];
+	unsigned m_nHistorySize;
+	unsigned m_nHistoryIndex;	// 0 .. m_nHistorySize
 };
 
 #endif
