@@ -62,9 +62,9 @@ private:
 
 	CMACAddress m_MACAddress;
 
-	CUSBRequest *m_pURB;
+	CUSBRequest *volatile m_pURB;
 	DMA_BUFFER (u8, m_RxBuffer, FRAME_BUFFER_SIZE);
-	unsigned m_nRxLength;
+	volatile unsigned m_nRxLength;
 };
 
 #endif
