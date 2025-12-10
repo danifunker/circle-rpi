@@ -22,7 +22,6 @@
 #include <circle/usb/gadget/usbmsdgadget.h>
 #include <circle/usb/gadget/usbmsdgadgetendpoint.h>
 #include <circle/logger.h>
-#include <circle/sysconfig.h>
 #include <circle/util.h>
 #include <assert.h>
 
@@ -31,7 +30,7 @@
 #define MLOGERR(From,...)		CLogger::Get ()->Write (From, LogError,__VA_ARGS__)
 #define DEFAULT_BLOCKS 16000
 
-const TUSBDeviceDescriptor CUSBMSDGadget::s_DeviceDescriptor =
+TUSBDeviceDescriptor CUSBMSDGadget::s_DeviceDescriptor =
 {
 	sizeof (TUSBDeviceDescriptor),
 	DESCRIPTOR_DEVICE,
@@ -93,11 +92,14 @@ const char *const CUSBMSDGadget::s_StringDescriptor[] =
 	"Mass Storage Gadget"
 };
 
-CUSBMSDGadget::CUSBMSDGadget (CInterruptSystem *pInterruptSystem, CDevice *pDevice)
+CUSBMSDGadget::CUSBMSDGadget (CInterruptSystem *pInterruptSystem, CDevice *pDevice,
+			      u16 usVendorID, u16 usProductID)
 :	CDWUSBGadget (pInterruptSystem, HighSpeed),
 	m_pDevice (pDevice),
 	m_pEP {nullptr, nullptr, nullptr}
 {
+	s_DeviceDescriptor.idVendor = usVendorID;
+	s_DeviceDescriptor.idProduct = usProductID;
 	if(pDevice)SetDevice(pDevice);
 }
 
@@ -304,51 +306,34 @@ void CUSBMSDGadget::OnTransferComplete (boolean bIn, size_t nLength)
 			}
 		}
 	}
-	else    //packet from host is available in m_OutBuffer
+	else     //packet from host has been transferred
 	{
 		switch(m_nState)
 		{
 		case TMSDState::ReceiveCBW:
 			{
-				if(nLength != SIZE_CBW)
+				assert(nLength==SIZE_CBW);
+				memcpy(&m_CBW,m_OutBuffer,nLength);
+				if(m_CBW.dCBWSignature==VALID_CBW_SIG)
 				{
-					MLOGERR("ReceiveCBW","Invalid CBW len = %i",nLength);
-					m_pEP[EPIn]->StallRequest(true);
-					break;
-				}
-				memcpy(&m_CBW,m_OutBuffer,SIZE_CBW);
-				if(m_CBW.dCBWSignature != VALID_CBW_SIG)
-				{
-					MLOGERR("ReceiveCBW","Invalid CBW sig = 0x%x",
-						m_CBW.dCBWSignature);
-					m_pEP[EPIn]->StallRequest(true);
-					break;
-				}
-				m_CSW.dCSWTag=m_CBW.dCBWTag;
-				if(m_CBW.bCBWCBLength<=16 && m_CBW.bCBWLUN==0) //meaningful CBW
-				{
-					HandleSCSICommand(); //will update m_nstate
-					break;
-				} // TODO: response for not meaningful CBW
-				break;
-			}
-		case TMSDState::DataOut:
-			{
-				//process block from host
-				assert(m_nnumber_blocks>0);
-				if(m_MSDReady)
-				{
-					m_nState=TMSDState::DataOutWrite; //see Update function
+					m_CSW.dCSWTag=m_CBW.dCBWTag;
+					m_CSW.dCSWDataResidue=0;
+					MLOGNOTE("ReceiveCBW","CBWCB[0]= 0x%X",m_CBW.CBWCB[0]);
+					HandleSCSICommand();
 				}
 				else
 				{
-					MLOGERR("onXferCmplt DataOut","failed, %s",
-					        m_MSDReady?"ready":"not ready");
-					m_CSW.bmCSWStatus=MSD_CSW_STATUS_FAIL;
-					m_ReqSenseReply.bSenseKey = 2;
-					m_ReqSenseReply.bAddlSenseCode = 1;
+					MLOGERR("ReceiveCBW","invalid signature, 0x%X",m_CBW.dCBWSignature);
+					m_nState=TMSDState::InvalidCBW;
 					SendCSW();
 				}
+				break;
+			}
+
+		case TMSDState::DataOut:
+			{
+				assert(nLength==BLOCK_SIZE);
+				m_nState=TMSDState::DataOutWrite; //see Update function
 				break;
 			}
 
