@@ -25,7 +25,8 @@
 
 CDWUSBGadgetEndpoint0::CDWUSBGadgetEndpoint0 (size_t nMaxPacketSize, CDWUSBGadget *pGadget)
 :	CDWUSBGadgetEndpoint (nMaxPacketSize, pGadget),
-	m_State (StateDisconnect)
+	m_State (StateDisconnect),
+	m_nPendingDeviceAddress (0)
 {
 }
 
@@ -148,7 +149,7 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 		switch (pSetupData->bRequest)
 		{
 		case SET_ADDRESS:
-			m_pGadget->SetDeviceAddress (pSetupData->wValue & 0xFF);
+			m_nPendingDeviceAddress = pSetupData->wValue & 0xFF;
 
 			m_State = StateInStatusPhase;
 
@@ -253,6 +254,12 @@ void CDWUSBGadgetEndpoint0::OnTransferComplete (boolean bIn, size_t nLength)
 		    && m_pGadget->OnClassOrVendorRequest (&m_SetupData, m_OutBuffer) < 0)
 		{
 			Stall (TRUE);
+		}
+
+		if (m_nPendingDeviceAddress != 0)
+		{
+			m_pGadget->SetDeviceAddress (m_nPendingDeviceAddress);
+			m_nPendingDeviceAddress = 0;
 		}
 		// fall through
 
