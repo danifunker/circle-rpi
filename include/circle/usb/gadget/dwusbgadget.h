@@ -69,6 +69,11 @@ public:
 	/// \return Negotiated speed (FullSpeed or HighSpeed) or DeviceSpeedUnknown
 	TDeviceSpeed GetNegotiatedUSBSpeed (void) const;
 
+	/// \brief A new speed has been negotiated
+	/// \param Speed Negotiated speed (FullSpeed or HighSpeed)
+	/// \note May override this to update EP parameters.
+	virtual void OnNegotiatedSpeed (TDeviceSpeed Speed) {}
+
 	/// \brief Device connection has been suspended / removed
 	/// \note Have to undo AddEndpoints() and CreateDevice() here.
 	virtual void OnSuspend (void) = 0;

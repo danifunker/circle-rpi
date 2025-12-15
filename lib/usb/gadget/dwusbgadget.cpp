@@ -632,6 +632,9 @@ void CDWUSBGadget::HandleEnumerationDone (void)
 		USBConfig.Or (9 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
 		USBConfig.Write ();
 
+		TDeviceSpeed Speed = GetNegotiatedUSBSpeed ();
+		OnNegotiatedSpeed (Speed);
+
 		assert (m_pEP[0]);
 		m_pEP[0]->OnActivate ();
 

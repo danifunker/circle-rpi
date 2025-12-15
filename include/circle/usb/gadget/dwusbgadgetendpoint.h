@@ -65,6 +65,10 @@ public:
 	/// \note Override this to abort pending transfers.
 	virtual void OnSuspend (void) {}
 
+	/// \brief Set maximum packet size
+	/// \param nMaxPacketSize New maximum packet size
+	void SetMaxPacketSize (size_t nMaxPacketSize);
+
 protected:
 	/// \return Endpoint number (0-15)
 	unsigned GetEPNumber (void) const
