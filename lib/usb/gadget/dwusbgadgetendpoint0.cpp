@@ -154,7 +154,7 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 			m_State = StateInStatusPhase;
 
 			// Queue the Status ZLP (Zero Length Packet) before changing the address
-			BeginTransfer (TransferDataIn, nullptr, 0);
+			BeginTransfer (TransferDataIn, m_InBuffer, 0);
 			break;
 
 		case SET_CONFIGURATION:
