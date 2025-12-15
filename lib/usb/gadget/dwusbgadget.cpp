@@ -632,6 +632,9 @@ void CDWUSBGadget::HandleEnumerationDone (void)
 		USBConfig.Or (9 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
 		USBConfig.Write ();
 
+		TDeviceSpeed Speed = GetNegotiatedUSBSpeed ();
+		OnNegotiatedSpeed (Speed);
+
 		assert (m_pEP[0]);
 		m_pEP[0]->OnActivate ();
 
@@ -839,4 +842,23 @@ boolean CDWUSBGadget::SetConfiguration (u8 uchConfiguration)
 	m_bPnPEvent[PnPEventConfigured] = TRUE;
 
 	return TRUE;
+}
+
+CDWUSBGadget::TDeviceSpeed CDWUSBGadget::GetNegotiatedUSBSpeed (void) const
+{
+	CDWHCIRegister DeviceStatus (DWHCI_DEV_STS);
+	u32 nEnumSpeed = (DeviceStatus.Read () & DWHCI_DEV_STS_ENUM_SPEED__MASK) >> DWHCI_DEV_STS_ENUM_SPEED__SHIFT;
+
+	switch (nEnumSpeed)
+	{
+	case DWHCI_DEV_STS_ENUM_SPEED_HS_30_60:
+		return HighSpeed;
+
+	case DWHCI_DEV_STS_ENUM_SPEED_FS_30_60:
+	case DWHCI_DEV_STS_ENUM_SPEED_FS_48:
+		return FullSpeed;
+
+	default:
+		return DeviceSpeedUnknown;
+	}
 }
