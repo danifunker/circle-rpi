@@ -33,7 +33,8 @@ public:
 	enum TDeviceSpeed
 	{
 		FullSpeed,
-		HighSpeed
+		HighSpeed,
+		DeviceSpeedUnknown
 	};
 
 public:
@@ -63,6 +64,10 @@ public:
 
 	/// \brief Create application interface device (API)
 	virtual void CreateDevice (void) = 0;
+
+	/// \brief Get negotiated USB speed
+	/// \return Negotiated speed (FullSpeed or HighSpeed) or DeviceSpeedUnknown
+	TDeviceSpeed GetNegotiatedUSBSpeed (void) const;
 
 	/// \brief Device connection has been suspended / removed
 	/// \note Have to undo AddEndpoints() and CreateDevice() here.
