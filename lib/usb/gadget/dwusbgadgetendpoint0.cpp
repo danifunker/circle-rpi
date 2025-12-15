@@ -155,6 +155,13 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 
 			// Queue the Status ZLP (Zero Length Packet) before changing the address
 			BeginTransfer (TransferDataIn, m_InBuffer, 0);
+
+			// Manually set Data PID to DATA1 for the Status Phase
+			CDWHCIRegister InEP0Ctrl (DWHCI_DEV_IN_EP_CTRL (0));
+			InEP0Ctrl.Read ();
+			InEP0Ctrl.Or (DWHCI_DEV_EP_CTRL_SETDPID_D1);
+			InEP0Ctrl.Write ();
+
 			return;
 
 		case SET_CONFIGURATION:
