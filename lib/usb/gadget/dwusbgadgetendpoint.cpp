@@ -240,6 +240,13 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
 		InEPCtrl.Or (s_NextEPSeq[m_nEP] << DWHCI_DEV_IN_EP_CTRL_NEXT_EP__SHIFT);
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_ENABLE);
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_CLEAR_NAK);
+
+		// Status phase of control write transfer?
+		if (m_nEP == 0 && nLength == 0)
+		{
+			InEPCtrl.Or (DWHCI_DEV_EP_CTRL_SETDPID_D1);
+		}
+
 		InEPCtrl.Write ();
 	}
 	else
