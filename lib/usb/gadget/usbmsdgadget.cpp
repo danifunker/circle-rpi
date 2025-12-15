@@ -255,6 +255,38 @@ int CUSBMSDGadget::OnClassOrVendorRequest (const TSetupData *pSetupData, u8 *pDa
 	return -1;
 }
 
+void CUSBMSDGadget::OnNegotiatedSpeed (TDeviceSpeed Speed)
+{
+	if (Speed == FullSpeed)
+	{
+		MLOGNOTE ("OnNegotiatedSpeed", "FullSpeed");
+
+		if (m_pEP[EPIn])
+		{
+			m_pEP[EPIn]->SetMaxPacketSize (64);
+		}
+
+		if (m_pEP[EPOut])
+		{
+			m_pEP[EPOut]->SetMaxPacketSize (64);
+		}
+	}
+	else
+	{
+		MLOGNOTE ("OnNegotiatedSpeed", "HighSpeed");
+
+		if (m_pEP[EPIn])
+		{
+			m_pEP[EPIn]->SetMaxPacketSize (512);
+		}
+
+		if (m_pEP[EPOut])
+		{
+			m_pEP[EPOut]->SetMaxPacketSize (512);
+		}
+	}
+}
+
 void CUSBMSDGadget::OnTransferComplete (boolean bIn, size_t nLength)
 {
 	MLOGDEBUG("OnXferComplete", "state = %i, dir = %s, len=%i ",m_nState,bIn?"IN":"OUT",nLength);
