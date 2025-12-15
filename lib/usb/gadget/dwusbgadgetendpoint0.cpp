@@ -148,7 +148,7 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 	{
 		switch (pSetupData->bRequest)
 		{
-		case SET_ADDRESS:
+		case SET_ADDRESS: {
 			m_nPendingDeviceAddress = pSetupData->wValue & 0xFF;
 
 			m_State = StateInStatusPhase;
@@ -163,6 +163,7 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 			InEP0Ctrl.Write ();
 
 			return;
+			}
 
 		case SET_CONFIGURATION:
 			if (!m_pGadget->SetConfiguration (pSetupData->wValue & 0xFF))
