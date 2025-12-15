@@ -626,16 +626,10 @@ void CDWUSBGadget::HandleEnumerationDone (void)
 
 	if (m_State == StateResetDone)
 	{
-		TDeviceSpeed Speed = GetNegotiatedUSBSpeed ();
-		assert (Speed != DeviceSpeedUnknown);
-
 		CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 		USBConfig.Read ();
 		USBConfig.And (~DWHCI_CORE_USB_CFG_TURNAROUND_TIME__MASK);
-		USBConfig.Or (   (  Speed == FullSpeed
-				  ? 5
-				  : 9)
-			      << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
+		USBConfig.Or (9 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
 		USBConfig.Write ();
 
 		assert (m_pEP[0]);
