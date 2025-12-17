@@ -1,0 +1,17 @@
+# Makefile.full
+
+CIRCLEHOME = ../..
+
+all: deps main
+
+deps:
+	@cd $(CIRCLEHOME) && ./makeall
+	$(MAKE) -C $(CIRCLEHOME)/addon/SDCard
+
+main:
+	$(MAKE) -f Makefile
+
+clean:
+	$(MAKE) -C $(CIRCLEHOME)/addon/SDCard clean
+	@cd $(CIRCLEHOME) && ./makeall clean
+	$(MAKE) -f Makefile clean

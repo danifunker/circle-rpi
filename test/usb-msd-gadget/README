@@ -17,3 +17,5 @@ Otherwise there is a risk of damage. Be careful!
 A configuration is required for this test. You have to define the macro
 USB_GADGET_VENDOR_ID with your USB Vendor ID to be used for the USB device. See
 the file include/circle/sysconfig.h for details!
+
+It is also possible to have this code execute with a USB_GADGET_VENDOR_ID and USB_GADGET_DEVICE_ID at runtime bu

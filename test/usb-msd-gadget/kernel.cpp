@@ -28,9 +28,9 @@ CKernel::CKernel (void)
 	m_Timer (&m_Interrupt),
 	m_Logger (m_Options.GetLogLevel (), &m_Timer),
 	m_EMMC (&m_Interrupt, &m_Timer, &m_ActLED),
-	m_MSDGadget (&m_Interrupt)
+	m_MSDGadget (&m_Interrupt, nullptr, 0x0781, 0x5583)
 {
-	m_ActLED.Blink (5);	// show we are alive
+	//m_ActLED.Blink (5);	// show we are alive
 }
 
 CKernel::~CKernel (void)
