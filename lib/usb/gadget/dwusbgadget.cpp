@@ -234,6 +234,12 @@ boolean CDWUSBGadget::InitCore (void)
 	DeviceCtrl.Or (DWHCI_DEV_CTRL_SOFT_DISCONNECT);
 	DeviceCtrl.Write ();
 
+	CDWHCIRegister OTGControl (DWHCI_CORE_OTG_CTRL);
+	OTGControl.Read ();
+	OTGControl.Or (DWHCI_CORE_OTG_CTRL_B_SESSION_VALID_OV_EN);
+	OTGControl.Or (DWHCI_CORE_OTG_CTRL_B_SESSION_VALID_OV_VAL);
+	OTGControl.Write ();
+
 	CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 	USBConfig.Read ();
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
@@ -246,6 +252,8 @@ boolean CDWUSBGadget::InitCore (void)
 	{
 		USBConfig.And (~DWHCI_CORE_USB_CFG_PHY_SEL_FS);
 	}
+	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV);
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE);
 	USBConfig.Write ();
 
 	CDWHCIRegister AHBConfig (DWHCI_CORE_AHB_CFG);
