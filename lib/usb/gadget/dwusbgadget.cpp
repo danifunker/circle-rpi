@@ -216,6 +216,7 @@ boolean CDWUSBGadget::InitCore (void)
 		return FALSE;
 	}
 
+	// Configure USB core - matching Linux dwc2 gadget.c:dwc2_hsotg_core_init_disconnected
 	CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 	USBConfig.Read ();
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
@@ -252,7 +253,7 @@ boolean CDWUSBGadget::InitCore (void)
 
 void CDWUSBGadget::InitCoreDevice (void)
 {
-	// Restart the PHY clock
+	// Restart the PHY clock - matches Linux dwc2_phy_init
 	CDWHCIRegister Power (ARM_USB_POWER, 0);
 	Power.Write ();
 
@@ -262,17 +263,7 @@ void CDWUSBGadget::InitCoreDevice (void)
 	CTimer::Get ()->MsDelay (40);
 #endif
 
-	// Set device speed
-	CDWHCIRegister DeviceConfig (DWHCI_DEV_CFG);
-	DeviceConfig.Read ();
-	DeviceConfig.And (~DWHCI_DEV_CFG_DEV_SPEED__MASK);
-	DeviceConfig.Or (   (  m_DeviceSpeed == FullSpeed
-			     ? DWHCI_DEV_CFG_DEV_SPEED_FS
-			     : DWHCI_DEV_CFG_DEV_SPEED_HS)
-			 << DWHCI_DEV_CFG_DEV_SPEED__SHIFT);
-	DeviceConfig.Write ();
-
-	// Configure data FIFO sizes (dynamic FIFO sizing enabled)
+	// Configure data FIFO sizes (dynamic FIFO sizing enabled) - matches Linux dwc2_hsotg_init_fifo
 	ASSERT_STATIC (   RX_FIFO_SIZE + NPER_TX_FIFO_SIZE + DEDICATED_TX_FIFO_SIZE*NumberOfInEPs
 		       <= TOTAL_FIFO_SIZE);
 
@@ -300,30 +291,77 @@ void CDWUSBGadget::InitCoreDevice (void)
 			   << DWHCI_CORE_DFIFO_CFG_EPINFO_BASE__SHIFT);
 	DataFIFOConfig.Write ();
 
+	// Flush FIFOs - matches Linux sequence
 	FlushTxFIFO (0x10);	 	// Flush all TX FIFOs
 	FlushRxFIFO ();
 
-	// Flush the learning queue
-	CDWHCIRegister Reset (DWHCI_CORE_RESET, DWHCI_CORE_RESET_IN_TOKEN_QUEUE_FLUSH);
-	Reset.Write ();
+	// CRITICAL FIX #1: DO NOT flush token queue here!
+	// Linux does NOT flush the token queue during init - only during USB reset.
+	// Flushing the token queue here was clearing DCFG register, losing device speed setting.
+	// The token queue flush belongs ONLY in HandleUSBReset().
 
+	// Set device speed BEFORE clearing soft disconnect - matching Linux exactly
+	CDWHCIRegister DeviceConfig (DWHCI_DEV_CFG);
+	DeviceConfig.Read ();
+	DeviceConfig.And (~DWHCI_DEV_CFG_DEV_SPEED__MASK);
+	DeviceConfig.Or (   (  m_DeviceSpeed == FullSpeed
+			     ? DWHCI_DEV_CFG_DEV_SPEED_FS
+			     : DWHCI_DEV_CFG_DEV_SPEED_HS)
+			 << DWHCI_DEV_CFG_DEV_SPEED__SHIFT);
+	
+	// Also set EP mismatch count (for IN endpoints) - Linux sets this to 1
+	DeviceConfig.And (~DWHCI_DEV_CFG_EP_MISMATCH_COUNT__MASK);
+	DeviceConfig.Or (1 << DWHCI_DEV_CFG_EP_MISMATCH_COUNT__SHIFT);
+	DeviceConfig.Write ();
+
+#ifdef USB_GADGET_DEBUG
+	// Verify DCFG persists after writing (should have EP mismatch count + device speed)
+	// For HighSpeed: EPMISCNT(1) = 0x00040000, DEVSPD_HS = 0, so DCFG = 0x00040000
+	// For FullSpeed: EPMISCNT(1) = 0x00040000, DEVSPD_FS = 1, so DCFG = 0x00040001
+	CDWHCIRegister DeviceConfigCheck (DWHCI_DEV_CFG);
+	u32 nExpectedDCFG = (1 << 18) | (m_DeviceSpeed == HighSpeed ? 0 : 1);
+	LOGDBG ("After setting device speed, DCFG = 0x%08X (expected: 0x%08X)", 
+		DeviceConfigCheck.Read(), nExpectedDCFG);
+#endif
+
+	// Set DCTL.SftDiscon to keep device disconnected during init - matching Linux Section 1.2
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	DeviceCtrl.Or (DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+	DeviceCtrl.Write ();
+
+#ifdef USB_GADGET_DEBUG
+	CDWHCIRegister DCFGCheck1 (DWHCI_DEV_CFG);
+	LOGDBG ("After setting SftDiscon, DCFG = 0x%08X", DCFGCheck1.Read());
+#endif
+
+	// CRITICAL FIX #3: DO NOT write to DWHCI_DEV_EACH_EP_INT registers!
+	// These registers overlap with or corrupt DCFG (0x800).
+	// Linux dwc2 does NOT use these "each EP" interrupt registers.
+	// Commenting out the code that was clearing DCFG:
+	
 	// Clear all device interrupts (multiprocessing support is not used)
-	for (unsigned i = 0; i < NumberOfInEPs; i++)
-	{
-		CDWHCIRegister EachInEPIntMask (DWHCI_DEV_EACH_IN_EP_INT_MASK (i), 0);
-		EachInEPIntMask.Write ();
-	}
+	// for (unsigned i = 0; i < NumberOfInEPs; i++)
+	// {
+	// 	CDWHCIRegister EachInEPIntMask (DWHCI_DEV_EACH_IN_EP_INT_MASK (i), 0);
+	// 	EachInEPIntMask.Write ();
+	// }
+	//
+	// for (unsigned i = 0; i < NumberOfOutEPs; i++)
+	// {
+	// 	CDWHCIRegister EachOutEPIntMask (DWHCI_DEV_EACH_OUT_EP_INT_MASK (i), 0);
+	// 	EachOutEPIntMask.Write ();
+	// }
+	//
+	// CDWHCIRegister EachEPInterrupt (DWHCI_DEV_EACH_EP_INT, ~0U);
+	// EachEPInterrupt.Write ();
+	// CDWHCIRegister EachEPInterruptMask (DWHCI_DEV_EACH_EP_INT, 0);
+	// EachEPInterruptMask.Write ();
 
-	for (unsigned i = 0; i < NumberOfOutEPs; i++)
-	{
-		CDWHCIRegister EachOutEPIntMask (DWHCI_DEV_EACH_OUT_EP_INT_MASK (i), 0);
-		EachOutEPIntMask.Write ();
-	}
-
-	CDWHCIRegister EachEPInterrupt (DWHCI_DEV_EACH_EP_INT, ~0U);
-	EachEPInterrupt.Write ();
-	CDWHCIRegister EachEPInterruptMask (DWHCI_DEV_EACH_EP_INT, 0);
-	EachEPInterruptMask.Write ();
+#ifdef USB_GADGET_DEBUG
+	CDWHCIRegister DCFGCheck2 (DWHCI_DEV_CFG);
+	LOGDBG ("After clearing Each EP masks, DCFG = 0x%08X", DCFGCheck2.Read());
+#endif
 
 	// Initialize all IN EP registers
 	for (unsigned i = 0; i <= NumberOfInEPs; i++)
@@ -332,7 +370,10 @@ void CDWUSBGadget::InitCoreDevice (void)
 		if (InEPCtrl.Read () & DWHCI_DEV_EP_CTRL_EP_ENABLE)
 		{
 			InEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_DISABLE);
-			InEPCtrl.Or (DWHCI_DEV_EP_CTRL_SET_NAK);
+		}
+		else
+		{
+			InEPCtrl.ClearAll ();
 		}
 		InEPCtrl.Write ();
 
@@ -342,39 +383,39 @@ void CDWUSBGadget::InitCoreDevice (void)
 		CDWHCIRegister InEPDMAAddress (DWHCI_DEV_IN_EP_DMA_ADDR (i), 0);
 		InEPDMAAddress.Write ();
 
-		CDWHCIRegister InEPInterrupt (DWHCI_DEV_IN_EP_INT (i), 0xFF);
-		InEPInterrupt.Write ();
+		CDWHCIRegister InEPInt (DWHCI_DEV_IN_EP_INT (i), ~0U);
+		InEPInt.Write ();
+	}
+
+#ifdef USB_GADGET_DEBUG
+	CDWHCIRegister DCFGCheck3 (DWHCI_DEV_CFG);
+	LOGDBG ("After IN EP init, DCFG = 0x%08X", DCFGCheck3.Read());
+#endif
+
+	// Set global OUT NAK
+	DeviceCtrl.Read ();
+	DeviceCtrl.Or (DWHCI_DEV_CTRL_SET_GLOBAL_OUT_NAK);
+	DeviceCtrl.Write ();
+
+	// Wait for global NAK to take effect
+	CDWHCIRegister IntStatus (DWHCI_CORE_INT_STAT);
+	if (!WaitForBit (&IntStatus, DWHCI_CORE_INT_STAT_GLOBAL_OUT_NAK_EFF, TRUE, 100))
+	{
+		LOGWARN ("Global OUT NAK timeout");
 	}
 
 	// Initialize all OUT EP registers
 	for (unsigned i = 0; i <= NumberOfOutEPs; i++)
 	{
-		CDWHCIRegister OutEPCtrl (DWHCI_DEV_OUT_EP_CTRL (i), 0);
+		CDWHCIRegister OutEPCtrl (DWHCI_DEV_OUT_EP_CTRL (i));
 		if (OutEPCtrl.Read () & DWHCI_DEV_EP_CTRL_EP_ENABLE)
 		{
-			CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
-			DeviceCtrl.Read ();
-			DeviceCtrl.Set (DWHCI_DEV_CTRL_SET_GLOBAL_OUT_NAK);
-			DeviceCtrl.Write ();
-
-			CDWHCIRegister IntStatus (DWHCI_CORE_INT_STAT);
-			WaitForBit (&IntStatus, DWHCI_CORE_INT_STAT_GLOBAL_OUT_NAK_EFF, TRUE, 1000);
-			IntStatus.Set (DWHCI_CORE_INT_STAT_GLOBAL_OUT_NAK_EFF);
-			IntStatus.Write ();
-
-			OutEPCtrl.ClearAll ();
-			OutEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_DISABLE);
 			OutEPCtrl.Or (DWHCI_DEV_EP_CTRL_SET_NAK);
-			OutEPCtrl.Write ();
-
-			CDWHCIRegister OutEPInterrupt (DWHCI_DEV_OUT_EP_INT (i));
-			WaitForBit (&OutEPInterrupt, DWHCI_DEV_OUT_EP_INT_EP_DISABLED, TRUE, 1000);
-			OutEPInterrupt.Set (DWHCI_DEV_OUT_EP_INT_EP_DISABLED);
-			OutEPInterrupt.Write ();
-
-			DeviceCtrl.Read ();
-			DeviceCtrl.Set (DWHCI_DEV_CTRL_CLEAR_GLOBAL_OUT_NAK);
-			DeviceCtrl.Write ();
+			OutEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_DISABLE);
+		}
+		else
+		{
+			OutEPCtrl.ClearAll ();
 		}
 		OutEPCtrl.Write ();
 
@@ -384,44 +425,72 @@ void CDWUSBGadget::InitCoreDevice (void)
 		CDWHCIRegister OutEPDMAAddress (DWHCI_DEV_OUT_EP_DMA_ADDR (i), 0);
 		OutEPDMAAddress.Write ();
 
-		CDWHCIRegister OutEPInterrupt (DWHCI_DEV_OUT_EP_INT (i), 0xFF);
-		OutEPInterrupt.Write ();
+		CDWHCIRegister OutEPInt (DWHCI_DEV_OUT_EP_INT (i), ~0U);
+		OutEPInt.Write ();
 	}
 
-	EnableDeviceInterrupts ();
-
-	CDWHCIRegister InEPCommonIntMask (DWHCI_DEV_IN_EP_COMMON_INT_MASK);
-	InEPCommonIntMask.Read ();
-	InEPCommonIntMask.Or (DWHCI_DEV_IN_EP_COMMON_INT_MASK_FIFO_UNDERRUN);
-	InEPCommonIntMask.Write ();
-}
-
-boolean CDWUSBGadget::Reset (void)
-{
-	CDWHCIRegister Reset (DWHCI_CORE_RESET, 0);
-
-	// wait for AHB master IDLE state
-	if (!WaitForBit (&Reset, DWHCI_CORE_RESET_AHB_IDLE, TRUE, 100))
-	{
-		return FALSE;
-	}
-
-	// core soft reset
-	Reset.Or (DWHCI_CORE_RESET_SOFT_RESET);
-	Reset.Write ();
-
-	if (!WaitForBit (&Reset, DWHCI_CORE_RESET_SOFT_RESET, FALSE, 10))
-	{
-		return FALSE;
-	}
-
-#ifdef NO_BUSY_WAIT
-	CScheduler::Get ()->MsSleep (100);
-#else
-	CTimer::Get ()->MsDelay (100);
+#ifdef USB_GADGET_DEBUG
+	CDWHCIRegister DCFGCheck4 (DWHCI_DEV_CFG);
+	LOGDBG ("After OUT EP init, DCFG = 0x%08X", DCFGCheck4.Read());
 #endif
 
-	return TRUE;
+	// Clear global OUT NAK
+	DeviceCtrl.Read ();
+	DeviceCtrl.Or (DWHCI_DEV_CTRL_CLEAR_GLOBAL_OUT_NAK);
+	DeviceCtrl.Write ();
+
+	// Clear all EP interrupts initially - matching Linux (DAINTMSK = 0)
+	CDWHCIRegister AllEPsInt (DWHCI_DEV_ALL_EPS_INT_STAT, ~0U);
+	AllEPsInt.Write ();
+	CDWHCIRegister AllEPsIntMask (DWHCI_DEV_ALL_EPS_INT_MASK, 0);
+	AllEPsIntMask.Write ();
+
+	EnableCommonInterrupts ();
+	
+	// Clear Global NAKs while KEEPING SftDiscon set - matching Linux exactly
+	// Linux line 3570-3573: Sets CGOUTNAK | CGNPINNAK | SFTDISCON atomically
+	CDWHCIRegister DeviceCtrlNAK (DWHCI_DEV_CTRL);
+	DeviceCtrlNAK.Read ();
+	DeviceCtrlNAK.Or (DWHCI_DEV_CTRL_CLEAR_GLOBAL_OUT_NAK);  // Clear Global OUT NAK (bit 10)
+#ifdef DWHCI_DEV_CTRL_CLEAR_GLOBAL_NON_PER_IN_NAK
+	DeviceCtrlNAK.Or (DWHCI_DEV_CTRL_CLEAR_GLOBAL_NON_PER_IN_NAK);  // Clear Global NP IN NAK (bit 8)
+#else
+	DeviceCtrlNAK.Or (1 << 8);  // Clear Global NP IN NAK (bit 8) - fallback
+#endif
+	// Note: NOT clearing SftDiscon here - keeping device disconnected
+	DeviceCtrlNAK.Write ();
+
+#ifdef USB_GADGET_DEBUG
+	LOGDBG ("Cleared Global NAKs, device still disconnected");
+#endif
+
+	// Must be at least 3ms to allow bus to see disconnect - Linux line 3582-3583
+#ifdef NO_BUSY_WAIT
+	CScheduler::Get ()->MsSleep (3);
+#else
+	CTimer::Get ()->MsDelay (3);
+#endif
+
+	EnableDeviceInterrupts ();
+}
+
+void CDWUSBGadget::EnableCommonInterrupts (void)
+{
+	// Set common IN EP interrupt mask - matching Linux DIEPMSK
+	CDWHCIRegister InEPCommonIntMask (DWHCI_DEV_IN_EP_COMMON_INT_MASK, 0);
+	InEPCommonIntMask.Or (DWHCI_DEV_IN_EP_INT_XFER_COMPLETE);
+	InEPCommonIntMask.Or (DWHCI_DEV_IN_EP_INT_TIMEOUT);
+	InEPCommonIntMask.Or (DWHCI_DEV_IN_EP_INT_AHB_ERROR);
+	InEPCommonIntMask.Or (DWHCI_DEV_IN_EP_INT_EP_DISABLED);
+	InEPCommonIntMask.Write ();
+
+	// Set common OUT EP interrupt mask - matching Linux DOEPMSK
+	CDWHCIRegister OutEPCommonIntMask (DWHCI_DEV_OUT_EP_COMMON_INT_MASK, 0);
+	OutEPCommonIntMask.Or (DWHCI_DEV_OUT_EP_INT_SETUP_DONE);
+	OutEPCommonIntMask.Or (DWHCI_DEV_OUT_EP_INT_XFER_COMPLETE);
+	OutEPCommonIntMask.Or (DWHCI_DEV_OUT_EP_INT_AHB_ERROR);
+	OutEPCommonIntMask.Or (DWHCI_DEV_OUT_EP_INT_EP_DISABLED);
+	OutEPCommonIntMask.Write ();
 }
 
 void CDWUSBGadget::EnableDeviceInterrupts (void)
@@ -434,7 +503,7 @@ void CDWUSBGadget::EnableDeviceInterrupts (void)
 	IntStatus.SetAll ();
 	IntStatus.Write ();
 
-	// Enable interrupts
+	// Enable interrupts - matching Linux GINTMSK
 	IntMask.Or (DWHCI_CORE_INT_MASK_USB_SUSPEND);
 	IntMask.Or (DWHCI_CORE_INT_MASK_USB_RESET_INTR);
 	IntMask.Or (DWHCI_CORE_INT_MASK_ENUM_DONE);
@@ -442,6 +511,40 @@ void CDWUSBGadget::EnableDeviceInterrupts (void)
 	IntMask.Or (DWHCI_CORE_INT_MASK_OUT_EP_INTR);
 	IntMask.Or (DWHCI_CORE_INT_MASK_IN_EP_MISMATCH);
 	IntMask.Write ();
+
+	// CRITICAL FIX #2: Clear SftDiscon - matching Linux dwc2_hsotg_core_connect()
+	// NAKs were already cleared earlier with 3ms delay
+	// This simply enables the pull-up resistor to connect the device
+#ifdef USB_GADGET_DEBUG
+	CDWHCIRegister PreCheckDCFG (DWHCI_DEV_CFG);
+	LOGDBG ("Before clearing SftDiscon: DCFG = 0x%08X", PreCheckDCFG.Read());
+#endif
+
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	
+#ifdef USB_GADGET_DEBUG
+	LOGDBG ("Current DCTL = 0x%08X (SftDiscon should be set)", DeviceCtrl.Get());
+#endif
+	
+	// Simply clear soft disconnect - Linux dwc2_clear_bit(hsotg, DCTL, DCTL_SFTDISCON)
+	DeviceCtrl.And (~DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+
+#ifdef USB_GADGET_DEBUG
+	LOGDBG ("Writing DCTL = 0x%08X (clearing SftDiscon only)", DeviceCtrl.Get());
+#endif
+
+	DeviceCtrl.Write ();
+
+#ifdef USB_GADGET_DEBUG
+	// Check DCTL after write to verify SftDiscon is actually cleared
+	CDWHCIRegister PostCheckDCTL (DWHCI_DEV_CTRL);
+	LOGDBG ("After DCTL write, DCTL = 0x%08X (should be 0x00000000)", PostCheckDCTL.Read());
+	
+	CDWHCIRegister PostCheckDCFG (DWHCI_DEV_CFG);
+	LOGDBG ("After clearing SftDiscon: DCFG = 0x%08X", PostCheckDCFG.Read());
+	LOGDBG ("Pull-up enabled, device should now be visible on bus");
+#endif
 }
 
 void CDWUSBGadget::FlushTxFIFO (unsigned nFIFO)
@@ -472,6 +575,35 @@ void CDWUSBGadget::FlushRxFIFO (void)
 	}
 
 	CTimer::Get ()->usDelay (1);		// Wait for 3 PHY clocks
+}
+
+boolean CDWUSBGadget::Reset (void)
+{
+	CDWHCIRegister Reset (DWHCI_CORE_RESET, 0);
+
+	// wait for AHB master IDLE state
+	if (!WaitForBit (&Reset, DWHCI_CORE_RESET_AHB_IDLE, TRUE, 100))
+	{
+		return FALSE;
+	}
+
+	// core soft reset
+	Reset.Or (DWHCI_CORE_RESET_SOFT_RESET);
+	Reset.Write ();
+
+	if (!WaitForBit (&Reset, DWHCI_CORE_RESET_SOFT_RESET, FALSE, 10))
+	{
+		return FALSE;
+	}
+
+	// Delay after reset - matching Linux (100ms is used)
+#ifdef NO_BUSY_WAIT
+	CScheduler::Get ()->MsSleep (100);
+#else
+	CTimer::Get ()->MsDelay (100);
+#endif
+
+	return TRUE;
 }
 
 boolean CDWUSBGadget::WaitForBit (CDWHCIRegister *pRegister,
@@ -528,6 +660,8 @@ void CDWUSBGadget::HandleUSBSuspend (void)
 
 	CDWHCIRegister IntStatus (DWHCI_CORE_INT_STAT, DWHCI_CORE_INT_MASK_USB_SUSPEND);
 	IntStatus.Write ();
+
+	m_State = StateSuspended;
 }
 
 void CDWUSBGadget::HandleUSBReset (void)
@@ -561,7 +695,8 @@ void CDWUSBGadget::HandleUSBReset (void)
 
 	FlushTxFIFO (0x10);
 
-	// Flush learning queue
+	// Flush token queue - THIS IS THE RIGHT PLACE FOR IT (not in InitCoreDevice!)
+	// Linux does this in USB reset handler, not during initial device setup
 	CDWHCIRegister Reset (DWHCI_CORE_RESET, DWHCI_CORE_RESET_IN_TOKEN_QUEUE_FLUSH);
 	Reset.Write ();
 
