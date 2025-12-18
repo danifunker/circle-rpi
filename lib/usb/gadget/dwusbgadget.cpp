@@ -254,6 +254,15 @@ boolean CDWUSBGadget::InitCore (void)
 	}
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV);
 	USBConfig.And (~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE);
+
+	// Set Turnaround Time (TRDT) to 9 (High Speed default for BCM2835)
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TURNAROUND_TIME__MASK);
+	USBConfig.Or (9 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
+
+	// Set Timeout Calibration to 7
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TOUTCAL__MASK);
+	USBConfig.Or (7 << DWHCI_CORE_USB_CFG_TOUTCAL__SHIFT);
+
 	USBConfig.Write ();
 
 	CDWHCIRegister AHBConfig (DWHCI_CORE_AHB_CFG);
