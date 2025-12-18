@@ -244,14 +244,7 @@ boolean CDWUSBGadget::InitCore (void)
 	USBConfig.Read ();
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
 	USBConfig.And (~DWHCI_CORE_USB_CFG_PHYIF);		// UTMI width is 8
-	if (m_DeviceSpeed == FullSpeed)
-	{
-		USBConfig.Or (DWHCI_CORE_USB_CFG_PHY_SEL_FS);
-	}
-	else
-	{
-		USBConfig.And (~DWHCI_CORE_USB_CFG_PHY_SEL_FS);
-	}
+	USBConfig.And (~DWHCI_CORE_USB_CFG_PHY_SEL_FS);	// always use UTMI+ PHY
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV);
 	USBConfig.And (~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE);
 
