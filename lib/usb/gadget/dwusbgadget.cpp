@@ -219,6 +219,11 @@ boolean CDWUSBGadget::InitCore (void)
 	// Configure USB core - matching Linux dwc2 gadget.c:dwc2_hsotg_core_init_disconnected
 	CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 	USBConfig.Read ();
+	
+	// Set timeout calibration - Linux line 3416-3417
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TURNAROUND_TIME__MASK);
+	USBConfig.Or (7 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
+	
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
 	USBConfig.And (~DWHCI_CORE_USB_CFG_PHYIF);		// UTMI width is 8
 	USBConfig.Write ();
@@ -304,10 +309,11 @@ void CDWUSBGadget::InitCoreDevice (void)
 	CDWHCIRegister DeviceConfig (DWHCI_DEV_CFG);
 	DeviceConfig.Read ();
 	DeviceConfig.And (~DWHCI_DEV_CFG_DEV_SPEED__MASK);
-	DeviceConfig.Or (   (  m_DeviceSpeed == FullSpeed
-			     ? DWHCI_DEV_CFG_DEV_SPEED_FS
-			     : DWHCI_DEV_CFG_DEV_SPEED_HS)
-			 << DWHCI_DEV_CFG_DEV_SPEED__SHIFT);
+	
+	// TESTING: Try forcing Full Speed to see if BIOS handles it better
+	// Uncomment one of these two lines:
+	DeviceConfig.Or (DWHCI_DEV_CFG_DEV_SPEED_HS << DWHCI_DEV_CFG_DEV_SPEED__SHIFT);  // High Speed
+	// DeviceConfig.Or (DWHCI_DEV_CFG_DEV_SPEED_FS << DWHCI_DEV_CFG_DEV_SPEED__SHIFT);  // Full Speed (for testing)
 	
 	// Also set EP mismatch count (for IN endpoints) - Linux sets this to 1
 	DeviceConfig.And (~DWHCI_DEV_CFG_EP_MISMATCH_COUNT__MASK);
@@ -768,6 +774,13 @@ void CDWUSBGadget::HandleEnumerationDone (void)
 		USBConfig.Write ();
 
 		TDeviceSpeed Speed = GetNegotiatedUSBSpeed ();
+		
+#ifdef USB_GADGET_DEBUG
+		const char *pSpeedStr = Speed == HighSpeed ? "High Speed" : 
+		                        Speed == FullSpeed ? "Full Speed" : "Unknown";
+		LOGDBG ("Negotiated USB speed: %s", pSpeedStr);
+#endif
+		
 		OnNegotiatedSpeed (Speed);
 
 		assert (m_pEP[0]);
