@@ -122,6 +122,12 @@ boolean CDWUSBGadget::Initialize (boolean bScanDevices)
 
 	m_State = StateSuspended;
 
+	// connect device
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	DeviceCtrl.And (~DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+	DeviceCtrl.Write ();
+
 	// Enable all interrupts
 	AHBConfig.Read ();
 	AHBConfig.Or (DWHCI_CORE_AHB_CFG_GLOBALINT_MASK);
@@ -168,6 +174,12 @@ boolean CDWUSBGadget::UpdatePlugAndPlay (void)
 		AddEndpoints ();
 
 		m_State = StateSuspended;
+
+		// connect device
+		CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+		DeviceCtrl.Read ();
+		DeviceCtrl.And (~DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+		DeviceCtrl.Write ();
 
 		// Enable all interrupts
 		AHBConfig.Read ();
@@ -216,10 +228,24 @@ boolean CDWUSBGadget::InitCore (void)
 		return FALSE;
 	}
 
+	// disconnect device
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	DeviceCtrl.Or (DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+	DeviceCtrl.Write ();
+
 	CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 	USBConfig.Read ();
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
 	USBConfig.And (~DWHCI_CORE_USB_CFG_PHYIF);		// UTMI width is 8
+	if (m_DeviceSpeed == FullSpeed)
+	{
+		USBConfig.Or (DWHCI_CORE_USB_CFG_PHY_SEL_FS);
+	}
+	else
+	{
+		USBConfig.And (~DWHCI_CORE_USB_CFG_PHY_SEL_FS);
+	}
 	USBConfig.Write ();
 
 	CDWHCIRegister AHBConfig (DWHCI_CORE_AHB_CFG);
