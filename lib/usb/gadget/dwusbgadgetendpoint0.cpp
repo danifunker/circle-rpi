@@ -25,7 +25,8 @@
 
 CDWUSBGadgetEndpoint0::CDWUSBGadgetEndpoint0 (size_t nMaxPacketSize, CDWUSBGadget *pGadget)
 :	CDWUSBGadgetEndpoint (nMaxPacketSize, pGadget),
-	m_State (StateDisconnect)
+	m_State (StateDisconnect),
+	m_nPendingDeviceAddress (0)
 {
 }
 
@@ -147,13 +148,22 @@ void CDWUSBGadgetEndpoint0::OnControlMessage (void)
 	{
 		switch (pSetupData->bRequest)
 		{
-		case SET_ADDRESS:
-			m_pGadget->SetDeviceAddress (pSetupData->wValue & 0xFF);
+		case SET_ADDRESS: {
+			m_nPendingDeviceAddress = pSetupData->wValue & 0xFF;
 
 			m_State = StateInStatusPhase;
 
-			BeginTransfer (TransferDataIn, nullptr, 0);
-			break;
+			// Queue the Status ZLP (Zero Length Packet) before changing the address
+			BeginTransfer (TransferDataIn, m_InBuffer, 0);
+
+			// Manually set Data PID to DATA1 for the Status Phase
+			CDWHCIRegister InEP0Ctrl (DWHCI_DEV_IN_EP_CTRL (0));
+			InEP0Ctrl.Read ();
+			InEP0Ctrl.Or (DWHCI_DEV_EP_CTRL_SETDPID_D1);
+			InEP0Ctrl.Write ();
+
+			return;
+			}
 
 		case SET_CONFIGURATION:
 			if (!m_pGadget->SetConfiguration (pSetupData->wValue & 0xFF))
@@ -253,6 +263,12 @@ void CDWUSBGadgetEndpoint0::OnTransferComplete (boolean bIn, size_t nLength)
 		    && m_pGadget->OnClassOrVendorRequest (&m_SetupData, m_OutBuffer) < 0)
 		{
 			Stall (TRUE);
+		}
+
+		if (m_nPendingDeviceAddress != 0)
+		{
+			m_pGadget->SetDeviceAddress (m_nPendingDeviceAddress);
+			m_nPendingDeviceAddress = 0;
 		}
 		// fall through
 
