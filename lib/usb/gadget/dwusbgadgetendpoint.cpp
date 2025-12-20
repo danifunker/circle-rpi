@@ -104,12 +104,14 @@ void CDWUSBGadgetEndpoint::OnUSBReset (void)
 		InEP0Ctrl.Read ();
 		InEP0Ctrl.And (~DWHCI_DEV_EP0_CTRL_MAX_PACKET_SIZ__MASK);
 		InEP0Ctrl.Or (nValue << DWHCI_DEV_EP_CTRL_MAX_PACKET_SIZ__SHIFT);
+		InEP0Ctrl.Or (DWHCI_DEV_EP_CTRL_ACTIVE_EP);
 		InEP0Ctrl.Write ();
 
 		CDWHCIRegister OutEP0Ctrl (DWHCI_DEV_OUT_EP_CTRL (0));
 		OutEP0Ctrl.Read ();
 		OutEP0Ctrl.And (~DWHCI_DEV_EP0_CTRL_MAX_PACKET_SIZ__MASK);
 		OutEP0Ctrl.Or (nValue << DWHCI_DEV_EP_CTRL_MAX_PACKET_SIZ__SHIFT);
+		OutEP0Ctrl.Or (DWHCI_DEV_EP_CTRL_ACTIVE_EP);
 		OutEP0Ctrl.Write ();
 	}
 	else
@@ -240,6 +242,14 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
 		InEPCtrl.Or (s_NextEPSeq[m_nEP] << DWHCI_DEV_IN_EP_CTRL_NEXT_EP__SHIFT);
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_ENABLE);
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_CLEAR_NAK);
+		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_ACTIVE_EP);
+
+		// Status phase of control write transfer?
+		if (m_nEP == 0 && nLength == 0)
+		{
+			InEPCtrl.Or (DWHCI_DEV_EP_CTRL_SETDPID_D1);
+		}
+
 		InEPCtrl.Write ();
 	}
 	else
