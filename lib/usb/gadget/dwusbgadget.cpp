@@ -122,6 +122,12 @@ boolean CDWUSBGadget::Initialize (boolean bScanDevices)
 
 	m_State = StateSuspended;
 
+	// connect device
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	DeviceCtrl.And (~DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+	DeviceCtrl.Write ();
+
 	// Enable all interrupts
 	AHBConfig.Read ();
 	AHBConfig.Or (DWHCI_CORE_AHB_CFG_GLOBALINT_MASK);
@@ -168,6 +174,12 @@ boolean CDWUSBGadget::UpdatePlugAndPlay (void)
 		AddEndpoints ();
 
 		m_State = StateSuspended;
+
+		// connect device
+		CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+		DeviceCtrl.Read ();
+		DeviceCtrl.And (~DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+		DeviceCtrl.Write ();
 
 		// Enable all interrupts
 		AHBConfig.Read ();
@@ -216,10 +228,34 @@ boolean CDWUSBGadget::InitCore (void)
 		return FALSE;
 	}
 
+	// disconnect device
+	CDWHCIRegister DeviceCtrl (DWHCI_DEV_CTRL);
+	DeviceCtrl.Read ();
+	DeviceCtrl.Or (DWHCI_DEV_CTRL_SOFT_DISCONNECT);
+	DeviceCtrl.Write ();
+
+	CDWHCIRegister OTGControl (DWHCI_CORE_OTG_CTRL);
+	OTGControl.Read ();
+	OTGControl.Or (DWHCI_CORE_OTG_CTRL_B_SESSION_VALID_OV_EN);
+	OTGControl.Or (DWHCI_CORE_OTG_CTRL_B_SESSION_VALID_OV_VAL);
+	OTGControl.Write ();
+
 	CDWHCIRegister USBConfig (DWHCI_CORE_USB_CFG);
 	USBConfig.Read ();
 	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_UTMI_SEL);	// select UTMI+
 	USBConfig.And (~DWHCI_CORE_USB_CFG_PHYIF);		// UTMI width is 8
+	USBConfig.And (~DWHCI_CORE_USB_CFG_PHY_SEL_FS);	// always use UTMI+ PHY
+	USBConfig.And (~DWHCI_CORE_USB_CFG_ULPI_EXT_VBUS_DRV);
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TERM_SEL_DL_PULSE);
+
+	// Set Turnaround Time (TRDT) to 9 (High Speed default for BCM2835)
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TURNAROUND_TIME__MASK);
+	USBConfig.Or (9 << DWHCI_CORE_USB_CFG_TURNAROUND_TIME__SHIFT);
+
+	// Set Timeout Calibration to 7
+	USBConfig.And (~DWHCI_CORE_USB_CFG_TOUTCAL__MASK);
+	USBConfig.Or (7 << DWHCI_CORE_USB_CFG_TOUTCAL__SHIFT);
+
 	USBConfig.Write ();
 
 	CDWHCIRegister AHBConfig (DWHCI_CORE_AHB_CFG);
