@@ -189,6 +189,8 @@ private:
 
 	int OnClassOrVendorRequest (const TSetupData *pSetupData, u8 *pData) override;
 
+	void OnNegotiatedSpeed (TDeviceSpeed Speed) override;
+
 private:
 	friend class CUSBMSDGadgetEndpoint;
 
