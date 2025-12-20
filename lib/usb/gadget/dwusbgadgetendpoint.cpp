@@ -20,6 +20,7 @@
 #include <circle/usb/gadget/dwusbgadgetendpoint.h>
 #include <circle/usb/gadget/dwusbgadget.h>
 #include <circle/usb/dwhciregister.h>
+#include <circle/synchronize.h>
 #include <circle/logger.h>
 #include <circle/debug.h>
 #include <circle/util.h>
@@ -229,10 +230,12 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
 		InEPXferSize.Or (nPacketCount << DWHCI_DEV_EP_XFER_SIZ_PKT_CNT__SHIFT);
 		InEPXferSize.Or (nLength << DWHCI_DEV_EP_XFER_SIZ_XFER_SIZ__SHIFT);
 		InEPXferSize.Write ();
+		DataMemBarrier ();
 
 		CDWHCIRegister InEPDMAAddress (DWHCI_DEV_IN_EP_DMA_ADDR (m_nEP),
 					       BUS_ADDRESS ((uintptr) pBuffer));
 		InEPDMAAddress.Write ();
+		DataMemBarrier ();
 
 		CDWHCIRegister InEPCtrl (DWHCI_DEV_IN_EP_CTRL (m_nEP), 0);
 		InEPCtrl.Read ();
@@ -241,6 +244,7 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_ENABLE);
 		InEPCtrl.Or (DWHCI_DEV_EP_CTRL_CLEAR_NAK);
 		InEPCtrl.Write ();
+		DataMemBarrier ();
 	}
 	else
 	{
@@ -251,23 +255,27 @@ void CDWUSBGadgetEndpoint::BeginTransfer (TTransferMode Mode, void *pBuffer, siz
 			assert (m_nEP == 0);
 			assert (nLength == sizeof (TSetupData));
 
-			OutEPXferSize.Or (   nPacketCount
+			// Allow back-to-back setup packets (3 packets)
+			OutEPXferSize.Or (   3
 					  << DWHCI_DEV_EP0_XFER_SIZ_SETUP_PKT_CNT__SHIFT);
 		}
 
 		OutEPXferSize.Or (nPacketCount << DWHCI_DEV_EP_XFER_SIZ_PKT_CNT__SHIFT);
 		OutEPXferSize.Or (nLength << DWHCI_DEV_EP_XFER_SIZ_XFER_SIZ__SHIFT);
 		OutEPXferSize.Write ();
+		DataMemBarrier ();
 
 		CDWHCIRegister OutEPDMAAddress (DWHCI_DEV_OUT_EP_DMA_ADDR (m_nEP),
 						BUS_ADDRESS ((uintptr) pBuffer));
 		OutEPDMAAddress.Write ();
+		DataMemBarrier ();
 
 		CDWHCIRegister OutEPCtrl (DWHCI_DEV_OUT_EP_CTRL (m_nEP));
 		OutEPCtrl.Read ();
 		OutEPCtrl.Or (DWHCI_DEV_EP_CTRL_EP_ENABLE);
 		OutEPCtrl.Or (DWHCI_DEV_EP_CTRL_CLEAR_NAK);
 		OutEPCtrl.Write ();
+		DataMemBarrier ();
 	}
 }
 

@@ -60,6 +60,8 @@ private:
 	DMA_BUFFER (u8, m_InBuffer, BufferSize);
 
 	TSetupData m_SetupData;
+
+	int m_nPendingDeviceAddress;
 };
 
 #endif
